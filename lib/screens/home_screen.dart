@@ -27,10 +27,10 @@ class _HomeScreenState extends State<HomeScreen> {
       case 0:
         break;
       case 1:
-        context.go('/reports');
+        context.push('/reports');
         break;
       case 2:
-        context.go('/profile');
+        context.push('/profile');
         break;
     }
   }
@@ -61,7 +61,7 @@ class _HomeScreenState extends State<HomeScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.settings),
-            onPressed: () => context.go('/settings'),
+            onPressed: () => context.push('/settings'),
           ),
         ],
       ),
@@ -172,7 +172,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   label: isBusiness
                       ? 'Add Business Expense'
                       : 'Add Expense',
-                  onPressed: () => context.go('/add-expense'),
+                  onPressed: () => context.push('/add-expense', extra: isBusiness),
                 ),
                 _buildQuickActionButton(
                   context,
@@ -180,15 +180,8 @@ class _HomeScreenState extends State<HomeScreen> {
                   label: isBusiness
                       ? 'Add Revenue'
                       : 'Add Income',
-                  onPressed: () => context.go('/add-income'),
+                  onPressed: () => context.push('/add-income', extra: isBusiness),
                 ),
-                if (isBusiness)
-                  _buildQuickActionButton(
-                    context,
-                    icon: Icons.receipt_long,
-                    label: 'Invoices',
-                    onPressed: () => context.go('/invoices'),
-                  ),
               ],
             ),
 

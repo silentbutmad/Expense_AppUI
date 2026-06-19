@@ -6,7 +6,9 @@ import 'package:provider/provider.dart';
 import 'package:uuid/uuid.dart';
 
 class AddExpenseScreen extends StatefulWidget {
-  const AddExpenseScreen({super.key});
+  final bool isBusiness;
+
+  const AddExpenseScreen({super.key, this.isBusiness = false});
 
   @override
   State<AddExpenseScreen> createState() => _AddExpenseScreenState();
@@ -57,6 +59,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
         amount: enteredAmount,
         date: _selectedDate,
         category: _selectedCategory,
+        isBusinessExpense: widget.isBusiness,
       );
       Provider.of<ExpenseProvider>(context, listen: false)
           .addExpense(newExpense);

@@ -40,7 +40,7 @@ class _OtpScreenState extends State<OtpScreen> {
       if (response.statusCode == 201) {
         // ✅ SUCCESS
         if (mounted) {
-          context.go('/success?message=Registration Successful!&routeName=/login');
+          context.push('/success?message=Registration Successful!&routeName=/login');
         }
       } else {
         setState(() {

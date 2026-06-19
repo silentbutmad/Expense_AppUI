@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 
@@ -34,10 +32,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
     _lastNameController.dispose();
     _emailController.dispose();
     _mobileController.dispose();
+    
     _passwordController.dispose();
     _conformPasswordController.dispose();
     super.dispose();
   }
+
 
   Future<void> _register() async {
     if (_formKey.currentState!.validate()) {
@@ -67,7 +67,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         if (response.statusCode == 200) {
           // ✅ Navigate to OTP screen
           if (mounted) {
-            context.go('/otp', extra: {
+            context.push('/otp', extra: {
               "email": _emailController.text
             });
           }
@@ -215,7 +215,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
           if (_isLoading)
             Container(
-              color: Colors.black.withOpacity(0.3),
+              color: Colors.black.withValues(alpha: 0.3),
               child: const Center(child: CircularProgressIndicator()),
             ),
         ],

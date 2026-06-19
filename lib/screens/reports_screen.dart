@@ -40,6 +40,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final now = DateTime.now();
     final expenseProvider = Provider.of<ExpenseProvider>(context);
     final filteredExpenses = _getFilteredExpenses(expenseProvider.expenses);
 
@@ -48,7 +49,14 @@ class _ReportsScreenState extends State<ReportsScreen> {
     final filteredTotalExpenses =
         filteredExpenses.fold<double>(0.0, (sum, item) => sum + item.amount);
 
-    final filteredTotalIncome = expenseProvider.totalIncome;
+    final filteredTotalIncome = expenseProvider.getFilteredIncome(
+      _selectedRange == DateRange.thisMonth
+          ? DateTime(now.year, now.month, 1)
+          : _selectedRange == DateRange.last30Days
+              ? now.subtract(const Duration(days: 30))
+              : DateTime(2000),
+      now,
+    );
 
     return Scaffold(
       appBar: AppBar(

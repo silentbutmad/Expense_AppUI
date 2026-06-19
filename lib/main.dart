@@ -64,11 +64,17 @@ class _MyAppState extends State<MyApp> {
         ),
         GoRoute(
           path: '/add-expense',
-          builder: (context, state) => const AddExpenseScreen(),
+          builder: (context, state) {
+            final isBusiness = state.extra as bool? ?? false;
+            return AddExpenseScreen(isBusiness: isBusiness);
+          },
         ),
         GoRoute(
           path: '/add-income',
-          builder: (context, state) => const AddIncomeScreen(),
+          builder: (context, state) {
+            final isBusiness = state.extra as bool? ?? false;
+            return AddIncomeScreen(isBusiness: isBusiness);
+          },
         ),
         GoRoute(
           path: '/profile',

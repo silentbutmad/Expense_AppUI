@@ -26,7 +26,7 @@ class ScannerOverlay extends CustomPainter {
       ..addRect(Rect.fromLTWH(0, 0, size.width, size.height))
       ..addRRect(frame)
       ..fillType = PathFillType.evenOdd;
-    final backgroundPaint = Paint()..color = Colors.black.withOpacity(0.6);
+    final backgroundPaint = Paint()..color = Colors.black.withValues(alpha: 0.6);
     canvas.drawPath(backgroundPath, backgroundPaint);
 
     final paint = Paint()
@@ -61,9 +61,9 @@ class ScannerOverlay extends CustomPainter {
         begin: Alignment.topCenter,
         end: Alignment.bottomCenter,
         colors: [
-          Colors.cyanAccent.withOpacity(0),
+          Colors.cyanAccent.withValues(alpha: 0),
           Colors.cyanAccent,
-          Colors.cyanAccent.withOpacity(0),
+          Colors.cyanAccent.withValues(alpha: 0),
         ],
         stops: const [0.0, 0.5, 1.0],
       ).createShader(scanRect)

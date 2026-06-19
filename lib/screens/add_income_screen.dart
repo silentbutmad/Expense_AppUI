@@ -3,7 +3,9 @@ import 'package:myapp/providers/expense_provider.dart';
 import 'package:provider/provider.dart';
 
 class AddIncomeScreen extends StatefulWidget {
-  const AddIncomeScreen({super.key});
+  final bool isBusiness;
+
+  const AddIncomeScreen({super.key, this.isBusiness = false});
 
   @override
   State<AddIncomeScreen> createState() => _AddIncomeScreenState();
