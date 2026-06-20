@@ -2,6 +2,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:myapp/firebase_options.dart';
+import 'package:myapp/models/expense_model.dart';
 import 'package:myapp/providers/expense_provider.dart';
 import 'package:myapp/providers/theme_provider.dart';
 import 'package:myapp/screens/add_expense_screen.dart';
@@ -12,6 +13,7 @@ import 'package:myapp/screens/home_screen.dart';
 import 'package:myapp/screens/login_screen.dart';
 import 'package:myapp/screens/ocr_screen.dart';
 import 'package:myapp/screens/otp_screen.dart';
+import 'package:myapp/screens/personal_tab_screen.dart' show PersonalTabContent;
 import 'package:myapp/screens/profile_screen.dart';
 import 'package:myapp/screens/register_screen.dart';
 import 'package:myapp/screens/reports_screen.dart';
@@ -65,7 +67,20 @@ class _MyAppState extends State<MyApp> {
         GoRoute(
           path: '/add-expense',
           builder: (context, state) {
-            final isBusiness = state.extra as bool? ?? false;
+            final extra = state.extra;
+            if (extra is Map) {
+              final isBusiness = extra['isBusiness'] as bool? ?? false;
+              final transactionType = extra['transactionType'] as TransactionType?;
+              final personName = extra['personName'] as String?;
+              final transactionCategory = extra['transactionCategory'] as TransactionCategory?;
+              return AddExpenseScreen(
+                isBusiness: isBusiness,
+                transactionType: transactionType,
+                personName: personName,
+                transactionCategory: transactionCategory,
+              );
+            }
+            final isBusiness = extra as bool? ?? false;
             return AddExpenseScreen(isBusiness: isBusiness);
           },
         ),
@@ -113,6 +128,10 @@ class _MyAppState extends State<MyApp> {
             final email = (state.extra as Map)['email'];
             return OtpScreen(email: email);
           },
+        ),
+        GoRoute(
+          path: '/personal',
+          builder: (context, state) => const PersonalTabContent(),
         ),
         GoRoute(
           path: '/success',

@@ -1,3 +1,7 @@
+enum TransactionType { received, paid }
+enum ContextType { personal, business }
+enum TransactionCategory { income, expense, loan }
+
 class Expense {
   final String id;
   final String title;
@@ -5,8 +9,15 @@ class Expense {
   final DateTime date;
   final String category;
   final String? description;
-  final bool isBusinessExpense;
+  final ContextType contextType;
+  final TransactionCategory transactionCategory;
   final double? gst;
+  final String? partyId;
+  final String? personName;
+  final TransactionType? transactionType;
+  final String? remark;
+  final PaymentMode? paymentMode;
+  final List<ExpenseItem> items;
 
   Expense({
     required this.id,
@@ -15,7 +26,32 @@ class Expense {
     required this.date,
     required this.category,
     this.description,
-    this.isBusinessExpense = false,
+    this.contextType = ContextType.personal,
+    this.transactionCategory = TransactionCategory.expense,
     this.gst,
+    this.partyId,
+    this.personName,
+    this.transactionType,
+    this.remark,
+    this.paymentMode,
+    this.items = const [],
+  });
+
+  bool get isBusinessExpense => contextType == ContextType.business;
+}
+
+enum PaymentMode { cash, online, other }
+
+class ExpenseItem {
+  final String itemId;
+  final int quantity;
+  final double price;
+  final String? description;
+
+  ExpenseItem({
+    required this.itemId,
+    required this.quantity,
+    required this.price,
+    this.description,
   });
 }

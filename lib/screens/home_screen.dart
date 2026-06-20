@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:myapp/providers/expense_provider.dart';
+import 'package:myapp/screens/personal_tab_screen.dart' show PersonalTabContent;
 import 'package:myapp/widgets/expense_list.dart';
 import 'package:myapp/widgets/expense_pie_chart.dart';
 import 'package:provider/provider.dart';
@@ -71,7 +72,6 @@ class _HomeScreenState extends State<HomeScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-
             // 🔥 TOGGLE BUTTON
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -96,127 +96,126 @@ class _HomeScreenState extends State<HomeScreen> {
 
             const SizedBox(height: 20),
 
-            // 💰 BALANCE CARD
-            Card(
-              elevation: 8,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.all(20),
-                child: Column(
-                  children: [
-                    Text(
-                      isBusiness ? 'Business Balance' : 'Personal Balance',
-                      style: textTheme.headlineMedium,
-                    ),
-                    const SizedBox(height: 10),
-                    Text(
-                      '\u20b9${totalBalance.toStringAsFixed(2)}',
-                      style: textTheme.displayLarge?.copyWith(
-                        color: totalBalance >= 0
-                            ? Colors.green
-                            : Colors.red,
-                        fontWeight: FontWeight.bold,
+            if (isBusiness) ...[
+              // 💰 BUSINESS BALANCE CARD
+              Card(
+                elevation: 8,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
+                    children: [
+                      Text(
+                        'Business Balance',
+                        style: textTheme.headlineMedium,
                       ),
-                    ),
-                    const SizedBox(height: 20),
+                      const SizedBox(height: 10),
+                      Text(
+                        '\u20b9${totalBalance.toStringAsFixed(2)}',
+                        style: textTheme.displayLarge?.copyWith(
+                          color: totalBalance >= 0
+                              ? Colors.green
+                              : Colors.red,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 20),
 
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceAround,
-                      children: [
-                        Column(
-                          children: [
-                            Text(
-                              isBusiness ? 'Revenue' : 'Income',
-                              style: textTheme.titleMedium,
-                            ),
-                            const SizedBox(height: 5),
-                            Text(
-                              '\u20b9${totalIncome.toStringAsFixed(2)}',
-                              style: textTheme.bodyLarge
-                                  ?.copyWith(color: Colors.green),
-                            ),
-                          ],
-                        ),
-                        Column(
-                          children: [
-                            Text(
-                              isBusiness ? 'Costs' : 'Expenses',
-                              style: textTheme.titleMedium,
-                            ),
-                            const SizedBox(height: 5),
-                            Text(
-                              '\u20b9${totalExpenses.toStringAsFixed(2)}',
-                              style: textTheme.bodyLarge
-                                  ?.copyWith(color: Colors.red),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ],
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceAround,
+                        children: [
+                          Column(
+                            children: [
+                              Text(
+                                'Revenue',
+                                style: textTheme.titleMedium,
+                              ),
+                              const SizedBox(height: 5),
+                              Text(
+                                '\u20b9${totalIncome.toStringAsFixed(2)}',
+                                style: textTheme.bodyLarge
+                                    ?.copyWith(color: Colors.green),
+                              ),
+                            ],
+                          ),
+                          Column(
+                            children: [
+                              Text(
+                                'Costs',
+                                style: textTheme.titleMedium,
+                              ),
+                              const SizedBox(height: 5),
+                              Text(
+                                '\u20b9${totalExpenses.toStringAsFixed(2)}',
+                                style: textTheme.bodyLarge
+                                    ?.copyWith(color: Colors.red),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
               ),
-            ),
 
-            const SizedBox(height: 25),
+              const SizedBox(height: 25),
 
-            // ⚡ QUICK ACTIONS
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: [
-                _buildQuickActionButton(
-                  context,
-                  icon: Icons.add,
-                  label: isBusiness
-                      ? 'Add Business Expense'
-                      : 'Add Expense',
-                  onPressed: () => context.push('/add-expense', extra: isBusiness),
-                ),
-                _buildQuickActionButton(
-                  context,
-                  icon: Icons.add_card,
-                  label: isBusiness
-                      ? 'Add Revenue'
-                      : 'Add Income',
-                  onPressed: () => context.push('/add-income', extra: isBusiness),
-                ),
-              ],
-            ),
-
-            const SizedBox(height: 25),
-
-            // 📊 PIE CHART
-            Text(
-              isBusiness
-                  ? 'Business Expenses'
-                  : 'Personal Expenses',
-              style: textTheme.headlineSmall,
-            ),
-            const SizedBox(height: 15),
-
-            SizedBox(
-              height: 200,
-              child: filteredExpenses.isEmpty
-                  ? const Center(child: Text('No expenses yet.'))
-                  : ExpensePieChart(expenses: filteredExpenses),
-            ),
-
-            const SizedBox(height: 25),
-
-            // 📋 RECENT TRANSACTIONS
-            Text(
-              'Recent Transactions',
-              style: textTheme.headlineSmall,
-            ),
-            const SizedBox(height: 10),
-
-            filteredExpenses.isEmpty
-                ? const Center(child: Text('No recent transactions.'))
-                : ExpenseList(
-                    expenses: filteredExpenses.take(5).toList(),
+              // ⚡ QUICK ACTIONS
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                children: [
+                  _buildQuickActionButton(
+                    context,
+                    icon: Icons.add,
+                    label: 'Add Business Expense',
+                    onPressed: () => context.push('/add-expense', extra: true),
                   ),
+                  _buildQuickActionButton(
+                    context,
+                    icon: Icons.add_card,
+                    label: 'Add Revenue',
+                    onPressed: () => context.push('/add-income', extra: true),
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: 25),
+
+              // 📊 PIE CHART
+              Text(
+                'Business Expenses',
+                style: textTheme.headlineSmall,
+              ),
+              const SizedBox(height: 15),
+
+              SizedBox(
+                height: 200,
+                child: filteredExpenses.isEmpty
+                    ? const Center(child: Text('No expenses yet.'))
+                    : ExpensePieChart(expenses: filteredExpenses),
+              ),
+
+              const SizedBox(height: 25),
+
+              // 📋 RECENT TRANSACTIONS
+              Text(
+                'Recent Transactions',
+                style: textTheme.headlineSmall,
+              ),
+              const SizedBox(height: 10),
+
+              filteredExpenses.isEmpty
+                  ? const Center(child: Text('No recent transactions.'))
+                  : ExpenseList(
+                      expenses: filteredExpenses.take(5).toList(),
+                    ),
+            ] else ...[
+              // Personal Tab Content
+              const PersonalTabContent(),
+            ],
           ],
         ),
       ),

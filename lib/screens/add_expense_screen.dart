@@ -7,8 +7,17 @@ import 'package:uuid/uuid.dart';
 
 class AddExpenseScreen extends StatefulWidget {
   final bool isBusiness;
+  final TransactionType? transactionType;
+  final String? personName;
+  final TransactionCategory? transactionCategory;
 
-  const AddExpenseScreen({super.key, this.isBusiness = false});
+  const AddExpenseScreen({
+    super.key,
+    this.isBusiness = false,
+    this.transactionType,
+    this.personName,
+    this.transactionCategory,
+  });
 
   @override
   State<AddExpenseScreen> createState() => _AddExpenseScreenState();
@@ -18,17 +27,33 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
   final _formKey = GlobalKey<FormState>();
   final _titleController = TextEditingController();
   final _amountController = TextEditingController();
+  final _personNameController = TextEditingController();
+  final _remarkController = TextEditingController();
   DateTime _selectedDate = DateTime.now();
   String _selectedCategory = 'Food';
+  TransactionType _selectedTransactionType = TransactionType.paid;
+  TransactionCategory _selectedTransactionCategory = TransactionCategory.expense;
+  PaymentMode _selectedPaymentMode = PaymentMode.cash;
 
   final List<String> _categories = [
-    'Food',
-    'Travel',
-    'Utilities',
+    'Other',
+    'Insurance',
     'Entertainment',
+    'Food',
+    'Transport',
     'Shopping',
-    'Leisure',
-    'Work'
+    'Groceries',
+    'Health',
+    'Electronics',
+    'Social Life',
+    'Petty cash',
+    'EMI',
+    'Salary',
+    'Investment',
+    'Bonus',
+    'Home',
+    'Repairs',
+    'Pocket money',
   ];
 
   void _presentDatePicker() {
@@ -47,6 +72,20 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
     });
   }
 
+  @override
+  void initState() {
+    super.initState();
+    if (widget.transactionType != null) {
+      _selectedTransactionType = widget.transactionType!;
+    }
+    if (widget.personName != null) {
+      _personNameController.text = widget.personName!;
+    }
+    if (widget.transactionCategory != null) {
+      _selectedTransactionCategory = widget.transactionCategory!;
+    }
+  }
+
   void _submitData() {
     if (_formKey.currentState!.validate()) {
       final enteredAmount = double.tryParse(_amountController.text);
@@ -59,7 +98,16 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
         amount: enteredAmount,
         date: _selectedDate,
         category: _selectedCategory,
-        isBusinessExpense: widget.isBusiness,
+        contextType: widget.isBusiness ? ContextType.business : ContextType.personal,
+        transactionCategory: _selectedTransactionCategory,
+        personName: _personNameController.text.trim().isEmpty
+            ? null
+            : _personNameController.text.trim(),
+        transactionType: widget.isBusiness ? null : _selectedTransactionType,
+        remark: _remarkController.text.trim().isEmpty
+            ? null
+            : _remarkController.text.trim(),
+        paymentMode: _selectedPaymentMode,
       );
       Provider.of<ExpenseProvider>(context, listen: false)
           .addExpense(newExpense);
@@ -69,9 +117,16 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isPersonal = !widget.isBusiness;
+    final appBarTitle = widget.isBusiness
+        ? 'Add Business Expense'
+        : (_selectedTransactionType == TransactionType.received
+            ? 'Add Money Received'
+            : 'Add Money Paid');
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Add Expense'),
+        title: Text(appBarTitle),
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -114,6 +169,130 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                 },
               ),
               const SizedBox(height: 16),
+              if (isPersonal) ...[
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextFormField(
+                        controller: _personNameController,
+                        decoration: const InputDecoration(
+                          labelText: 'Name',
+                          border: OutlineInputBorder(),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    IconButton(
+                      onPressed: () {
+                        // TODO: Implement contact picker
+                      },
+                      icon: const Icon(Icons.contacts),
+                      tooltip: 'Select from contacts',
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                DropdownButtonFormField<TransactionCategory>(
+                  initialValue: _selectedTransactionCategory,
+                  items: const [
+                    DropdownMenuItem(
+                      value: TransactionCategory.income,
+                      child: Text('Income'),
+                    ),
+                    DropdownMenuItem(
+                      value: TransactionCategory.expense,
+                      child: Text('Expense'),
+                    ),
+                    DropdownMenuItem(
+                      value: TransactionCategory.loan,
+                      child: Text('Loan'),
+                    ),
+                  ],
+                  onChanged: (newValue) {
+                    if (newValue != null) {
+                      setState(() {
+                        _selectedTransactionCategory = newValue;
+                      });
+                    }
+                  },
+                  decoration: const InputDecoration(
+                    labelText: 'Category',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                DropdownButtonFormField(
+                  initialValue: _selectedCategory,
+                  items: _categories.map((String category) {
+                    return DropdownMenuItem(
+                      value: category,
+                      child: Text(category),
+                    );
+                  }).toList(),
+                  onChanged: (newValue) {
+                    setState(() {
+                      _selectedCategory = newValue as String;
+                    });
+                  },
+                  decoration: const InputDecoration(
+                    labelText: 'Sub Category',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: _remarkController,
+                  decoration: const InputDecoration(
+                    labelText: 'Remark',
+                    border: OutlineInputBorder(),
+                  ),
+                  maxLines: 2,
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    const Text('Payment Mode:'),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Row(
+                        children: [
+                          Radio<PaymentMode>(
+                            value: PaymentMode.cash,
+                            groupValue: _selectedPaymentMode,
+                            onChanged: (value) {
+                              setState(() {
+                                _selectedPaymentMode = value!;
+                              });
+                            },
+                          ),
+                          const Text('Cash'),
+                          Radio<PaymentMode>(
+                            value: PaymentMode.online,
+                            groupValue: _selectedPaymentMode,
+                            onChanged: (value) {
+                              setState(() {
+                                _selectedPaymentMode = value!;
+                              });
+                            },
+                          ),
+                          const Text('Online'),
+                          Radio<PaymentMode>(
+                            value: PaymentMode.other,
+                            groupValue: _selectedPaymentMode,
+                            onChanged: (value) {
+                              setState(() {
+                                _selectedPaymentMode = value!;
+                              });
+                            },
+                          ),
+                          const Text('Other'),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+              ],
               Row(
                 children: <Widget>[
                   Expanded(
@@ -130,25 +309,6 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                   ),
                 ],
               ),
-              const SizedBox(height: 16),
-              DropdownButtonFormField(
-                initialValue: _selectedCategory,
-                items: _categories.map((String category) {
-                  return DropdownMenuItem(
-                    value: category,
-                    child: Text(category),
-                  );
-                }).toList(),
-                onChanged: (newValue) {
-                  setState(() {
-                    _selectedCategory = newValue as String;
-                  });
-                },
-                decoration: const InputDecoration(
-                  labelText: 'Category',
-                  border: OutlineInputBorder(),
-                ),
-              ),
               const Spacer(),
               ElevatedButton(
                 onPressed: _submitData,
@@ -156,7 +316,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                   padding:
                       const EdgeInsets.symmetric(horizontal: 48, vertical: 12),
                 ),
-                child: const Text('Add Expense'),
+                child: Text(widget.isBusiness ? 'Add Expense' : 'Add Transaction'),
               ),
             ],
           ),
