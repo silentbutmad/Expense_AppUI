@@ -40,7 +40,15 @@ class ExpenseProvider with ChangeNotifier {
     notifyListeners();
 
     try {
-      _summary = await _apiService.getSummary();
+      final response = await _apiService.getSummary();
+      // Support both response formats:
+      // { total_income, total_expense, total_loan, net_balance }
+      // { success: true, data: { total_income, ... } }
+      if (response is Map<String, dynamic> && response.containsKey('data')) {
+        _summary = response['data'] as Map<String, dynamic>?;
+      } else {
+        _summary = response as Map<String, dynamic>?;
+      }
       _isLoadingSummary = false;
       notifyListeners();
     } catch (e) {

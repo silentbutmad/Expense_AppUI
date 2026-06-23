@@ -15,7 +15,7 @@ class PersonalTabContent extends StatefulWidget {
 class _PersonalTabContentState extends State<PersonalTabContent> {
   // Filter state
   String _selectedFilter = 'All';
-  final List<String> _filterOptions = [
+  final List<String> _filterOptions = const [
     'All',
     'Income',
     'Expense',
@@ -162,7 +162,7 @@ class _PersonalTabContentState extends State<PersonalTabContent> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final textTheme = theme.textTheme;
+    final colorScheme = theme.colorScheme;
 
     return PopScope(
       canPop: _selectedPersonName == null,
@@ -173,249 +173,145 @@ class _PersonalTabContentState extends State<PersonalTabContent> {
           });
         }
       },
-      child: RefreshIndicator(
-        onRefresh: _handleRefresh,
-        child: Consumer<ExpenseProvider>(
-          builder: (context, provider, child) {
-            final allTransactions = provider.personalTransactions;
-            final filteredTransactions = _getFilteredTransactions(allTransactions);
-            final groupedTransactions = _groupByDate(filteredTransactions);
+      child: Consumer<ExpenseProvider>(
+        builder: (context, provider, child) {
+          final allTransactions = provider.personalTransactions;
+          final filteredTransactions = _getFilteredTransactions(allTransactions);
+          final groupedTransactions = _groupByDate(filteredTransactions);
 
-            // Error state
-            if (provider.errorMessage != null && allTransactions.isEmpty) {
-              return SafeArea(
-                child: SingleChildScrollView(
-                  physics: const AlwaysScrollableScrollPhysics(),
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _buildSummaryCard(provider, textTheme),
-                      const SizedBox(height: 25),
-                      _buildActionButtons(theme),
-                      const SizedBox(height: 25),
-                      _buildSearchBar(theme),
-                      const SizedBox(height: 12),
-                      _buildFilterChips(theme),
-                      const SizedBox(height: 20),
-                      _buildErrorState(provider, theme),
-                    ],
-                  ),
-                ),
-              );
-            }
+          return RefreshIndicator(
+            onRefresh: _handleRefresh,
+            child: SingleChildScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.all(12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // 💰 COMPACT SUMMARY CARD
+                  _buildCompactSummaryCard(provider, colorScheme),
+                  const SizedBox(height: 12),
 
-            return SafeArea(
-              child: SingleChildScrollView(
-                physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // 💰 TOP SUMMARY CONTAINER
-                    _buildSummaryCard(provider, textTheme),
-                    const SizedBox(height: 25),
-                    // 🔘 ACTION BUTTONS
-                    _buildActionButtons(theme),
-                    const SizedBox(height: 25),
-                    // 🔍 SEARCH BAR
-                    _buildSearchBar(theme),
-                    const SizedBox(height: 12),
-                    // 📊 FILTERS
-                    _buildFilterChips(theme),
-                    const SizedBox(height: 20),
-                    // 📋 TRANSACTIONS LIST
-                    Text(
-                      _selectedPersonName == null
-                          ? 'All Transactions'
-                          : 'Transactions with $_selectedPersonName',
-                      style: textTheme.headlineSmall,
+                  // 🔘 ACTION BUTTONS
+                  _buildCompactActionButtons(theme),
+                  const SizedBox(height: 12),
+
+                  // 🔍 SEARCH BAR
+                  _buildCompactSearchBar(theme),
+                  const SizedBox(height: 8),
+
+                  // 📊 FILTER CHIPS
+                  _buildCompactFilterChips(theme),
+                  const SizedBox(height: 12),
+
+                  // 📋 TRANSACTIONS LIST
+                  Text(
+                    _selectedPersonName == null
+                        ? 'All Transactions'
+                        : 'Transactions with $_selectedPersonName',
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: colorScheme.onSurface,
                     ),
-                    const SizedBox(height: 10),
-                    if (provider.isLoadingTransactions)
-                      const Center(
-                        child: Padding(
-                          padding: EdgeInsets.all(40.0),
-                          child: CircularProgressIndicator(),
-                        ),
-                      )
-                    else if (filteredTransactions.isEmpty)
-                      _buildEmptyState(theme)
-                    else
-                      ...groupedTransactions.entries.map((entry) {
-                        return Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Padding(
-                              padding: const EdgeInsets.symmetric(vertical: 8.0),
-                              child: Text(
-                                entry.key,
-                                style: textTheme.titleMedium?.copyWith(
-                                  fontWeight: FontWeight.bold,
-                                  color: theme.colorScheme.primary,
-                                ),
+                  ),
+                  const SizedBox(height: 8),
+
+                  if (provider.isLoadingTransactions)
+                    const Center(
+                      child: Padding(
+                        padding: EdgeInsets.all(20.0),
+                        child: CircularProgressIndicator(),
+                      ),
+                    )
+                  else if (filteredTransactions.isEmpty)
+                    _buildCompactEmptyState(theme)
+                  else
+                    ...groupedTransactions.entries.map((entry) {
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 6.0),
+                            child: Text(
+                              entry.key,
+                              style: theme.textTheme.labelLarge?.copyWith(
+                                fontWeight: FontWeight.bold,
+                                color: colorScheme.primary,
                               ),
                             ),
-                            ...entry.value.map((tx) => _TransactionCard(
-                              transaction: tx,
-                              onTap: () {
-                                context.push('/transaction-detail', extra: tx);
-                              },
-                              onNameTap: () {
-                                final name = tx['name'] as String?;
-                                if (name != null && name.isNotEmpty) {
-                                  setState(() {
-                                    _selectedPersonName = name;
-                                  });
-                                }
-                              },
-                            )),
-                            const SizedBox(height: 8),
-                          ],
-                        );
-                      }).toList(),
-                  ],
-                ),
+                          ),
+                          ...entry.value.map((tx) => _CompactTransactionCard(
+                            transaction: tx,
+                            onTap: () {
+                              context.push('/transaction-detail', extra: tx);
+                            },
+                            onNameTap: () {
+                              final name = tx['name'] as String?;
+                              if (name != null && name.isNotEmpty) {
+                                setState(() {
+                                  _selectedPersonName = name;
+                                });
+                              }
+                            },
+                          )),
+                          const SizedBox(height: 4),
+                        ],
+                      );
+                    }).toList(),
+
+                  // Bottom padding for scroll
+                  const SizedBox(height: 16),
+                ],
               ),
-            );
-          },
-        ),
+            ),
+          );
+        },
       ),
     );
   }
 
-  Widget _buildEmptyState(ThemeData theme) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(40.0),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.receipt_long,
-              size: 80,
-              color: Colors.grey.shade400,
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'No transactions found',
-              style: theme.textTheme.bodyLarge?.copyWith(
-                color: Colors.grey,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-            const SizedBox(height: 16),
-            ElevatedButton.icon(
-              onPressed: () {
-                context.push('/add-expense', extra: {
-                  'isBusiness': false,
-                  'transactionType': TransactionType.paid,
-                  'transactionCategory': TransactionCategory.expense,
-                });
-              },
-              icon: const Icon(Icons.add),
-              label: const Text('Add Transaction'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: theme.colorScheme.primary,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-            ),
+  // Compact Summary Card
+  Widget _buildCompactSummaryCard(ExpenseProvider provider, ColorScheme colorScheme) {
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            colorScheme.primaryContainer,
+            colorScheme.primaryContainer.withValues(alpha: 0.7),
           ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
         ),
-      ),
-    );
-  }
-
-  Widget _buildErrorState(ExpenseProvider provider, ThemeData theme) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(40.0),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.error_outline,
-              size: 80,
-              color: Colors.red.shade300,
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'Unable to fetch transactions. Pull down to retry.',
-              style: theme.textTheme.bodyLarge?.copyWith(
-                color: Colors.grey,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 16),
-            ElevatedButton.icon(
-              onPressed: () => _handleRefresh(),
-              icon: const Icon(Icons.refresh),
-              label: const Text('Retry'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: theme.colorScheme.primary,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSummaryCard(ExpenseProvider provider, TextTheme textTheme) {
-    final theme = Theme.of(context);
-
-    return Card(
-      elevation: 8,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(16),
       ),
       child: Padding(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(12),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
               'Total Balance',
-              style: textTheme.headlineMedium,
-            ),
-            const SizedBox(height: 10),
-            Text(
-              '₹${provider.totalBalance.toStringAsFixed(2)}',
-              style: textTheme.displayLarge?.copyWith(
-                color: Colors.blue,
-                fontWeight: FontWeight.bold,
+              style: TextStyle(
+                fontSize: 12,
+                color: colorScheme.onPrimaryContainer.withValues(alpha: 0.8),
+                fontWeight: FontWeight.w500,
               ),
             ),
-            const SizedBox(height: 15),
+            const SizedBox(height: 4),
+            Text(
+              '₹${provider.totalBalance.toStringAsFixed(2)}',
+              style: TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                color: colorScheme.onPrimaryContainer,
+              ),
+            ),
+            const SizedBox(height: 8),
             Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                _buildSummaryItem(
-                  'Income',
-                  '₹${provider.totalIncome.toStringAsFixed(2)}',
-                  Colors.green,
-                  textTheme,
-                ),
-                _buildSummaryItem(
-                  'Expense',
-                  '₹${provider.totalExpense.toStringAsFixed(2)}',
-                  Colors.red,
-                  textTheme,
-                ),
-                _buildSummaryItem(
-                  'Loan',
-                  '₹${provider.totalLoan.toStringAsFixed(2)}',
-                  Colors.orange,
-                  textTheme,
-                ),
+                _buildSummaryItem('Income', '₹${provider.totalIncome.toStringAsFixed(2)}', Colors.green, colorScheme),
+                _buildSummaryItem('Expense', '₹${provider.totalExpense.toStringAsFixed(2)}', Colors.red, colorScheme),
+                _buildSummaryItem('Loan', '₹${provider.totalLoan.toStringAsFixed(2)}', Colors.orange, colorScheme),
               ],
             ),
           ],
@@ -424,27 +320,38 @@ class _PersonalTabContentState extends State<PersonalTabContent> {
     );
   }
 
-  Widget _buildSummaryItem(String label, String value, Color color, TextTheme textTheme) {
+  Widget _buildSummaryItem(String label, String value, Color color, ColorScheme colorScheme) {
     return Column(
       children: [
         Text(
           label,
-          style: textTheme.titleMedium,
+          style: TextStyle(
+            fontSize: 10,
+            color: colorScheme.onPrimaryContainer.withValues(alpha: 0.7),
+          ),
         ),
-        const SizedBox(height: 5),
+        const SizedBox(height: 2),
         Text(
           value,
-          style: textTheme.bodyLarge?.copyWith(color: color, fontWeight: FontWeight.w600),
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            color: color,
+          ),
         ),
       ],
     );
   }
 
-  Widget _buildActionButtons(ThemeData theme) {
+  // Compact Action Buttons
+  Widget _buildCompactActionButtons(ThemeData theme) {
     return Row(
       children: [
         Expanded(
-          child: ElevatedButton.icon(
+          child: _CompactActionButton(
+            label: 'Income',
+            icon: Icons.add_circle,
+            color: Colors.green,
             onPressed: () {
               context.push('/add-expense', extra: {
                 'isBusiness': false,
@@ -452,21 +359,14 @@ class _PersonalTabContentState extends State<PersonalTabContent> {
                 'transactionCategory': TransactionCategory.income,
               });
             },
-            icon: const Icon(Icons.add_circle, color: Colors.white),
-            label: const Text('Income'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.green,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(vertical: 12),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
           ),
         ),
-        const SizedBox(width: 8),
+        const SizedBox(width: 6),
         Expanded(
-          child: ElevatedButton.icon(
+          child: _CompactActionButton(
+            label: 'Expense',
+            icon: Icons.remove_circle,
+            color: Colors.red,
             onPressed: () {
               context.push('/add-expense', extra: {
                 'isBusiness': false,
@@ -474,52 +374,36 @@ class _PersonalTabContentState extends State<PersonalTabContent> {
                 'transactionCategory': TransactionCategory.expense,
               });
             },
-            icon: const Icon(Icons.remove_circle, color: Colors.white),
-            label: const Text('Expense'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(vertical: 12),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
           ),
         ),
-        const SizedBox(width: 8),
+        const SizedBox(width: 6),
         Expanded(
-          child: ElevatedButton.icon(
+          child: _CompactActionButton(
+            label: 'Loan',
+            icon: Icons.account_balance_wallet,
+            color: Colors.orange,
             onPressed: () {
               context.push('/add-expense', extra: {
                 'isBusiness': false,
                 'transactionCategory': TransactionCategory.loan,
               });
             },
-            icon: const Icon(Icons.account_balance_wallet, color: Colors.white),
-            label: const Text('Loan'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.orange,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(vertical: 12),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
           ),
         ),
       ],
     );
   }
 
-  Widget _buildSearchBar(ThemeData theme) {
+  // Compact Search Bar
+  Widget _buildCompactSearchBar(ThemeData theme) {
     return TextField(
       controller: _searchController,
       decoration: InputDecoration(
-        hintText: 'Search by name, category, or remark...',
-        prefixIcon: const Icon(Icons.search),
+        hintText: 'Search transactions...',
+        prefixIcon: const Icon(Icons.search, size: 18),
         suffixIcon: _searchQuery.isNotEmpty
             ? IconButton(
-                icon: const Icon(Icons.clear),
+                icon: const Icon(Icons.clear, size: 18),
                 onPressed: () {
                   _searchController.clear();
                   setState(() {
@@ -532,6 +416,7 @@ class _PersonalTabContentState extends State<PersonalTabContent> {
           borderRadius: BorderRadius.circular(12),
         ),
         filled: true,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       ),
       onChanged: (value) {
         setState(() {
@@ -541,9 +426,10 @@ class _PersonalTabContentState extends State<PersonalTabContent> {
     );
   }
 
-  Widget _buildFilterChips(ThemeData theme) {
+  // Compact Filter Chips
+  Widget _buildCompactFilterChips(ThemeData theme) {
     return SizedBox(
-      height: 50,
+      height: 32,
       child: ListView.builder(
         scrollDirection: Axis.horizontal,
         itemCount: _filterOptions.length,
@@ -552,9 +438,12 @@ class _PersonalTabContentState extends State<PersonalTabContent> {
           final isSelected = _selectedFilter == filter;
 
           return Padding(
-            padding: const EdgeInsets.only(right: 8.0),
+            padding: const EdgeInsets.only(right: 6.0),
             child: FilterChip(
-              label: Text(filter),
+              label: Text(
+                filter,
+                style: const TextStyle(fontSize: 11),
+              ),
               selected: isSelected,
               onSelected: (selected) {
                 setState(() {
@@ -566,9 +455,59 @@ class _PersonalTabContentState extends State<PersonalTabContent> {
               },
               selectedColor: theme.colorScheme.primaryContainer,
               checkmarkColor: theme.colorScheme.onPrimaryContainer,
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 0),
+              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              visualDensity: VisualDensity.compact,
             ),
           );
         },
+      ),
+    );
+  }
+
+  // Compact Empty State
+  Widget _buildCompactEmptyState(ThemeData theme) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.receipt_long,
+              size: 56,
+              color: Colors.grey.shade400,
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'No transactions found',
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: Colors.grey,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            const SizedBox(height: 12),
+            ElevatedButton.icon(
+              onPressed: () {
+                context.push('/add-expense', extra: {
+                  'isBusiness': false,
+                  'transactionType': TransactionType.paid,
+                  'transactionCategory': TransactionCategory.expense,
+                });
+              },
+              icon: const Icon(Icons.add, size: 16),
+              label: const Text('Add Transaction'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: theme.colorScheme.primary,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -592,12 +531,57 @@ class _PersonalTabContentState extends State<PersonalTabContent> {
   }
 }
 
-class _TransactionCard extends StatelessWidget {
+// Compact Action Button Widget
+class _CompactActionButton extends StatelessWidget {
+  final String label;
+  final IconData icon;
+  final Color color;
+  final VoidCallback onPressed;
+
+  const _CompactActionButton({
+    required this.label,
+    required this.icon,
+    required this.color,
+    required this.onPressed,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onPressed,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+      decoration: BoxDecoration(
+        color: color,
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(icon, color: Colors.white, size: 16),
+          const SizedBox(width: 4),
+          Text(
+            label,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+      ),
+    );
+  }
+}
+
+// Compact Transaction Card Widget
+class _CompactTransactionCard extends StatelessWidget {
   final Map<String, dynamic> transaction;
   final VoidCallback onTap;
   final VoidCallback? onNameTap;
 
-  const _TransactionCard({
+  const _CompactTransactionCard({
     required this.transaction,
     required this.onTap,
     this.onNameTap,
@@ -606,6 +590,7 @@ class _TransactionCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
     final amount = (() {
       final val = transaction['amount'];
       if (val is num) return val.toDouble();
@@ -649,11 +634,11 @@ class _TransactionCard extends StatelessWidget {
         if (loanType == 'LENT') {
           typeColor = Colors.blue;
           typeIcon = Icons.account_balance_wallet;
-          typeLabel = 'Loan Lent';
+          typeLabel = 'Lent';
         } else {
           typeColor = Colors.orange;
           typeIcon = Icons.account_balance;
-          typeLabel = 'Loan Borrow';
+          typeLabel = 'Borrow';
         }
         break;
       default:
@@ -663,7 +648,7 @@ class _TransactionCard extends StatelessWidget {
     }
 
     return Card(
-      margin: const EdgeInsets.symmetric(vertical: 8.0),
+      margin: const EdgeInsets.symmetric(vertical: 4.0),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
       ),
@@ -671,23 +656,23 @@ class _TransactionCard extends StatelessWidget {
         onTap: onTap,
         borderRadius: BorderRadius.circular(12),
         child: Padding(
-          padding: const EdgeInsets.all(12.0),
+          padding: const EdgeInsets.all(10.0),
           child: Row(
             children: [
               // Type Icon
               Container(
-                padding: const EdgeInsets.all(8),
+                padding: const EdgeInsets.all(6),
                 decoration: BoxDecoration(
-                  color: typeColor.withValues(alpha: 0.1),
+                  color: typeColor.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Icon(
                   typeIcon,
                   color: typeColor,
-                  size: 20,
+                  size: 16,
                 ),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 10),
 
               // Details
               Expanded(
@@ -702,15 +687,15 @@ class _TransactionCard extends StatelessWidget {
                             onTap: onNameTap,
                             child: Container(
                               padding: const EdgeInsets.symmetric(
-                                horizontal: 10,
-                                vertical: 4,
+                                horizontal: 8,
+                                vertical: 2,
                               ),
                               decoration: BoxDecoration(
-                                color: typeColor.withValues(alpha: 0.1),
-                                borderRadius: BorderRadius.circular(12),
+                                color: typeColor.withValues(alpha: 0.15),
+                                borderRadius: BorderRadius.circular(10),
                                 border: Border.all(
                                   color: typeColor,
-                                  width: 1,
+                                  width: 0.5,
                                 ),
                               ),
                               child: Text(
@@ -718,25 +703,26 @@ class _TransactionCard extends StatelessWidget {
                                 style: TextStyle(
                                   color: typeColor,
                                   fontWeight: FontWeight.w600,
-                                  fontSize: 12,
+                                  fontSize: 11,
                                 ),
                               ),
                             ),
                           ),
-                        if (personName.isNotEmpty) const SizedBox(width: 8),
+                        if (personName.isNotEmpty) const SizedBox(width: 6),
                         // Category
                         Expanded(
                           child: Text(
                             category,
-                            style: theme.textTheme.bodyMedium?.copyWith(
+                            style: theme.textTheme.bodySmall?.copyWith(
                               fontWeight: FontWeight.w500,
+                              fontSize: 12,
                             ),
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 4),
+                    const SizedBox(height: 2),
                     Row(
                       children: [
                         if (date != null)
@@ -744,6 +730,7 @@ class _TransactionCard extends StatelessWidget {
                             DateFormat.yMMMd().format(date),
                             style: theme.textTheme.bodySmall?.copyWith(
                               color: Colors.grey,
+                              fontSize: 10,
                             ),
                           ),
                         if (date != null && timeStr.isNotEmpty)
@@ -751,6 +738,7 @@ class _TransactionCard extends StatelessWidget {
                             ' at $timeStr',
                             style: theme.textTheme.bodySmall?.copyWith(
                               color: Colors.grey,
+                              fontSize: 10,
                             ),
                           ),
                         if (date != null && paymentMode.isNotEmpty)
@@ -758,18 +746,20 @@ class _TransactionCard extends StatelessWidget {
                             ' • $paymentMode',
                             style: theme.textTheme.bodySmall?.copyWith(
                               color: Colors.grey,
+                              fontSize: 10,
                             ),
                           ),
                       ],
                     ),
                     if (remark.isNotEmpty)
                       Padding(
-                        padding: const EdgeInsets.only(top: 4.0),
+                        padding: const EdgeInsets.only(top: 2.0),
                         child: Text(
                           remark,
                           style: theme.textTheme.bodySmall?.copyWith(
                             color: Colors.grey[600],
                             fontStyle: FontStyle.italic,
+                            fontSize: 10,
                           ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
@@ -785,25 +775,26 @@ class _TransactionCard extends StatelessWidget {
                 children: [
                   Text(
                     '₹${amount.toStringAsFixed(2)}',
-                    style: theme.textTheme.bodyLarge?.copyWith(
+                    style: theme.textTheme.bodyMedium?.copyWith(
                       fontWeight: FontWeight.bold,
                       color: typeColor,
+                      fontSize: 13,
                     ),
                   ),
-                  const SizedBox(height: 4),
+                  const SizedBox(height: 2),
                   Container(
                     padding: const EdgeInsets.symmetric(
-                      horizontal: 6,
-                      vertical: 2,
+                      horizontal: 5,
+                      vertical: 1,
                     ),
                     decoration: BoxDecoration(
-                      color: typeColor.withValues(alpha: 0.1),
+                      color: typeColor.withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(4),
                     ),
                     child: Text(
                       typeLabel,
                       style: TextStyle(
-                        fontSize: 10,
+                        fontSize: 9,
                         color: typeColor,
                         fontWeight: FontWeight.w500,
                       ),
