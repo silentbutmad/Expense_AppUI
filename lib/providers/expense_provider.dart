@@ -168,16 +168,16 @@ class ExpenseProvider with ChangeNotifier {
   }
 
   /// Get total balance
-  double get totalBalance => getSummaryValue('totalBalance');
+  double get totalBalance => getSummaryValue('net_balance');
 
   /// Get total income
-  double get totalIncome => getSummaryValue('totalIncome');
+  double get totalIncome => getSummaryValue('total_income');
 
   /// Get total expense
-  double get totalExpense => getSummaryValue('totalExpense');
+  double get totalExpense => getSummaryValue('total_expense');
 
   /// Get total loan amount
-  double get totalLoan => getSummaryValue('totalLoan');
+  double get totalLoan => getSummaryValue('total_loan');
 
   /// Clear error
   void clearError() {

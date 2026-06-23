@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
-import 'package:myapp/models/expense_model.dart';
 import 'package:myapp/providers/expense_provider.dart';
 import 'package:provider/provider.dart';
 
@@ -36,7 +35,7 @@ class _PersonTransactionScreenState extends State<PersonTransactionScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.personName),
+        title: Text('Transactions with ${widget.personName}'),
         backgroundColor: theme.scaffoldBackgroundColor,
         elevation: 0,
         foregroundColor: theme.colorScheme.onSurface,
@@ -44,6 +43,54 @@ class _PersonTransactionScreenState extends State<PersonTransactionScreen> {
       body: Consumer<ExpenseProvider>(
         builder: (context, provider, child) {
           final transactions = provider.personalTransactions;
+
+          // Loading state
+          if (provider.isLoadingTransactions) {
+            return const Center(
+              child: CircularProgressIndicator(),
+            );
+          }
+
+          // Error state
+          if (provider.errorMessage != null && transactions.isEmpty) {
+            return Center(
+              child: Padding(
+                padding: const EdgeInsets.all(40.0),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.error_outline,
+                      size: 80,
+                      color: Colors.red.shade300,
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      'Unable to fetch transactions. Pull down to retry.',
+                      style: textTheme.bodyLarge?.copyWith(
+                        color: Colors.grey,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 16),
+                    ElevatedButton.icon(
+                      onPressed: _loadTransactions,
+                      icon: const Icon(Icons.refresh),
+                      label: const Text('Retry'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: theme.colorScheme.primary,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }
 
           // Calculate totals
           double totalAmount = 0.0;
@@ -137,11 +184,22 @@ class _PersonTransactionScreenState extends State<PersonTransactionScreen> {
                     Center(
                       child: Padding(
                         padding: const EdgeInsets.all(40.0),
-                        child: Text(
-                          'No transactions found',
-                          style: textTheme.bodyLarge?.copyWith(
-                            color: Colors.grey,
-                          ),
+                        child: Column(
+                          children: [
+                            Icon(
+                              Icons.receipt_long,
+                              size: 80,
+                              color: Colors.grey.shade400,
+                            ),
+                            const SizedBox(height: 16),
+                            Text(
+                              'No transactions found',
+                              style: textTheme.bodyLarge?.copyWith(
+                                color: Colors.grey,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     )

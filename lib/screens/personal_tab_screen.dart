@@ -42,7 +42,9 @@ class _PersonalTabContentState extends State<PersonalTabContent> {
   @override
   void initState() {
     super.initState();
-    _loadData();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadData();
+    });
   }
 
   @override
@@ -67,7 +69,7 @@ class _PersonalTabContentState extends State<PersonalTabContent> {
     // Apply person filter
     if (_selectedPersonName != null) {
       filtered = filtered.where((tx) {
-        final name = tx['name'] as String? ?? tx['personName'] as String? ?? '';
+        final name = tx['name'] as String? ?? '';
         return name.toLowerCase() == _selectedPersonName!.toLowerCase();
       }).toList();
     }
@@ -75,29 +77,29 @@ class _PersonalTabContentState extends State<PersonalTabContent> {
     // Apply type filter
     switch (_selectedFilter) {
       case 'Income':
-        filtered = filtered.where((tx) => tx['transactionType'] == 'RECEIVED').toList();
+        filtered = filtered.where((tx) => tx['transaction_type'] == 'RECEIVED').toList();
         break;
       case 'Expense':
-        filtered = filtered.where((tx) => tx['transactionType'] == 'PAID').toList();
+        filtered = filtered.where((tx) => tx['transaction_type'] == 'PAID').toList();
         break;
       case 'Loan':
-        filtered = filtered.where((tx) => tx['transactionType'] == 'LOAN').toList();
+        filtered = filtered.where((tx) => tx['transaction_type'] == 'LOAN').toList();
         break;
       case 'Borrow':
         filtered = filtered.where((tx) {
-          return tx['transactionType'] == 'LOAN' && tx['loanType'] == 'BORROW';
+          return tx['transaction_type'] == 'LOAN' && tx['loan_type'] == 'BORROW';
         }).toList();
         break;
       case 'Lent':
         filtered = filtered.where((tx) {
-          return tx['transactionType'] == 'LOAN' && tx['loanType'] == 'LENT';
+          return tx['transaction_type'] == 'LOAN' && tx['loan_type'] == 'LENT';
         }).toList();
         break;
       case 'Cash':
-        filtered = filtered.where((tx) => tx['paymentMode'] == 'CASH').toList();
+        filtered = filtered.where((tx) => tx['payment_mode'] == 'CASH').toList();
         break;
       case 'Online':
-        filtered = filtered.where((tx) => tx['paymentMode'] == 'ONLINE').toList();
+        filtered = filtered.where((tx) => tx['payment_mode'] == 'ONLINE').toList();
         break;
       case 'Category':
         // Category filter would need a sub-filter, for now show all
@@ -105,7 +107,7 @@ class _PersonalTabContentState extends State<PersonalTabContent> {
       case 'Date Range':
         if (_startDate != null && _endDate != null) {
           filtered = filtered.where((tx) {
-            final dateStr = tx['date'] as String? ?? '';
+            final dateStr = tx['transaction_date'] as String? ?? '';
             if (dateStr.isEmpty) return false;
             try {
               final date = DateTime.parse(dateStr);
@@ -123,7 +125,7 @@ class _PersonalTabContentState extends State<PersonalTabContent> {
     if (_searchQuery.isNotEmpty) {
       final query = _searchQuery.toLowerCase();
       filtered = filtered.where((tx) {
-        final name = (tx['name'] as String? ?? tx['personName'] as String? ?? '').toLowerCase();
+        final name = (tx['name'] as String? ?? '').toLowerCase();
         final category = (tx['category'] as String? ?? '').toLowerCase();
         final remark = (tx['remark'] as String? ?? '').toLowerCase();
         return name.contains(query) || category.contains(query) || remark.contains(query);
@@ -132,8 +134,8 @@ class _PersonalTabContentState extends State<PersonalTabContent> {
 
     // Sort by date descending
     filtered.sort((a, b) {
-      final dateA = DateTime.tryParse(a['date'] as String? ?? '') ?? DateTime.now();
-      final dateB = DateTime.tryParse(b['date'] as String? ?? '') ?? DateTime.now();
+      final dateA = DateTime.tryParse(a['transaction_date'] as String? ?? '') ?? DateTime.now();
+      final dateB = DateTime.tryParse(b['transaction_date'] as String? ?? '') ?? DateTime.now();
       return dateB.compareTo(dateA);
     });
 
@@ -144,7 +146,7 @@ class _PersonalTabContentState extends State<PersonalTabContent> {
   Map<String, List<Map<String, dynamic>>> _groupByDate(List<Map<String, dynamic>> transactions) {
     final Map<String, List<Map<String, dynamic>>> grouped = {};
     for (final tx in transactions) {
-      final dateStr = tx['date'] as String? ?? '';
+      final dateStr = tx['transaction_date'] as String? ?? '';
       if (dateStr.isEmpty) continue;
       try {
         final date = DateTime.parse(dateStr);
@@ -179,95 +181,190 @@ class _PersonalTabContentState extends State<PersonalTabContent> {
             final filteredTransactions = _getFilteredTransactions(allTransactions);
             final groupedTransactions = _groupByDate(filteredTransactions);
 
-            return SingleChildScrollView(
-              physics: const AlwaysScrollableScrollPhysics(),
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // 💰 TOP SUMMARY CONTAINER
-                  _buildSummaryCard(provider, textTheme),
-
-                  const SizedBox(height: 25),
-
-                  // 🔘 ACTION BUTTONS
-                  _buildActionButtons(theme),
-
-                  const SizedBox(height: 25),
-
-                  // 🔍 SEARCH BAR
-                  _buildSearchBar(theme),
-
-                  const SizedBox(height: 12),
-
-                  // 📊 FILTERS
-                  _buildFilterChips(theme),
-
-                  const SizedBox(height: 20),
-
-                  // 📋 TRANSACTIONS LIST
-                  Text(
-                    _selectedPersonName == null
-                        ? 'All Transactions'
-                        : 'Transactions with $_selectedPersonName',
-                    style: textTheme.headlineSmall,
+            // Error state
+            if (provider.errorMessage != null && allTransactions.isEmpty) {
+              return SafeArea(
+                child: SingleChildScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildSummaryCard(provider, textTheme),
+                      const SizedBox(height: 25),
+                      _buildActionButtons(theme),
+                      const SizedBox(height: 25),
+                      _buildSearchBar(theme),
+                      const SizedBox(height: 12),
+                      _buildFilterChips(theme),
+                      const SizedBox(height: 20),
+                      _buildErrorState(provider, theme),
+                    ],
                   ),
-                  const SizedBox(height: 10),
+                ),
+              );
+            }
 
-                  if (provider.isLoadingTransactions)
-                    const Center(
-                      child: Padding(
-                        padding: EdgeInsets.all(40.0),
-                        child: CircularProgressIndicator(),
-                      ),
-                    )
-                  else if (filteredTransactions.isEmpty)
-                    Center(
-                      child: Padding(
-                        padding: const EdgeInsets.all(40.0),
-                        child: Text(
-                          'No transactions found.',
-                          style: textTheme.bodyLarge?.copyWith(color: Colors.grey),
+            return SafeArea(
+              child: SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // 💰 TOP SUMMARY CONTAINER
+                    _buildSummaryCard(provider, textTheme),
+                    const SizedBox(height: 25),
+                    // 🔘 ACTION BUTTONS
+                    _buildActionButtons(theme),
+                    const SizedBox(height: 25),
+                    // 🔍 SEARCH BAR
+                    _buildSearchBar(theme),
+                    const SizedBox(height: 12),
+                    // 📊 FILTERS
+                    _buildFilterChips(theme),
+                    const SizedBox(height: 20),
+                    // 📋 TRANSACTIONS LIST
+                    Text(
+                      _selectedPersonName == null
+                          ? 'All Transactions'
+                          : 'Transactions with $_selectedPersonName',
+                      style: textTheme.headlineSmall,
+                    ),
+                    const SizedBox(height: 10),
+                    if (provider.isLoadingTransactions)
+                      const Center(
+                        child: Padding(
+                          padding: EdgeInsets.all(40.0),
+                          child: CircularProgressIndicator(),
                         ),
-                      ),
-                    )
-                  else
-                    ...groupedTransactions.entries.map((entry) {
-                      return Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 8.0),
-                            child: Text(
-                              entry.key,
-                              style: textTheme.titleMedium?.copyWith(
-                                fontWeight: FontWeight.bold,
-                                color: theme.colorScheme.primary,
+                      )
+                    else if (filteredTransactions.isEmpty)
+                      _buildEmptyState(theme)
+                    else
+                      ...groupedTransactions.entries.map((entry) {
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 8.0),
+                              child: Text(
+                                entry.key,
+                                style: textTheme.titleMedium?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                  color: theme.colorScheme.primary,
+                                ),
                               ),
                             ),
-                          ),
-                          ...entry.value.map((tx) => _TransactionCard(
-                            transaction: tx,
-                            onTap: () {
-                              context.push('/transaction-detail', extra: tx);
-                            },
-                            onNameTap: () {
-                              final name = tx['name'] as String? ?? tx['personName'] as String?;
-                              if (name != null && name.isNotEmpty) {
-                                setState(() {
-                                  _selectedPersonName = name;
-                                });
-                              }
-                            },
-                          )),
-                          const SizedBox(height: 8),
-                        ],
-                      );
-                    }).toList(),
-                ],
+                            ...entry.value.map((tx) => _TransactionCard(
+                              transaction: tx,
+                              onTap: () {
+                                context.push('/transaction-detail', extra: tx);
+                              },
+                              onNameTap: () {
+                                final name = tx['name'] as String?;
+                                if (name != null && name.isNotEmpty) {
+                                  setState(() {
+                                    _selectedPersonName = name;
+                                  });
+                                }
+                              },
+                            )),
+                            const SizedBox(height: 8),
+                          ],
+                        );
+                      }).toList(),
+                  ],
+                ),
               ),
             );
           },
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEmptyState(ThemeData theme) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(40.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.receipt_long,
+              size: 80,
+              color: Colors.grey.shade400,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'No transactions found',
+              style: theme.textTheme.bodyLarge?.copyWith(
+                color: Colors.grey,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            const SizedBox(height: 16),
+            ElevatedButton.icon(
+              onPressed: () {
+                context.push('/add-expense', extra: {
+                  'isBusiness': false,
+                  'transactionType': TransactionType.paid,
+                  'transactionCategory': TransactionCategory.expense,
+                });
+              },
+              icon: const Icon(Icons.add),
+              label: const Text('Add Transaction'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: theme.colorScheme.primary,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildErrorState(ExpenseProvider provider, ThemeData theme) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(40.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.error_outline,
+              size: 80,
+              color: Colors.red.shade300,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Unable to fetch transactions. Pull down to retry.',
+              style: theme.textTheme.bodyLarge?.copyWith(
+                color: Colors.grey,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 16),
+            ElevatedButton.icon(
+              onPressed: () => _handleRefresh(),
+              icon: const Icon(Icons.refresh),
+              label: const Text('Retry'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: theme.colorScheme.primary,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -509,14 +606,19 @@ class _TransactionCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final amount = (transaction['amount'] as num?)?.toDouble() ?? 0.0;
-    final transactionType = transaction['transactionType'] as String? ?? '';
+    final amount = (() {
+      final val = transaction['amount'];
+      if (val is num) return val.toDouble();
+      if (val is String) return double.tryParse(val) ?? 0.0;
+      return 0.0;
+    })();
+    final transactionType = transaction['transaction_type'] as String? ?? '';
     final category = transaction['category'] as String? ?? '';
-    final paymentMode = transaction['paymentMode'] as String? ?? '';
-    final dateStr = transaction['date'] as String? ?? '';
+    final paymentMode = transaction['payment_mode'] as String? ?? '';
+    final dateStr = transaction['transaction_date'] as String? ?? '';
     final timeStr = transaction['time'] as String? ?? '';
     final remark = transaction['remark'] as String? ?? '';
-    final personName = transaction['name'] as String? ?? transaction['personName'] as String? ?? '';
+    final personName = transaction['name'] as String? ?? '';
 
     DateTime? date;
     if (dateStr.isNotEmpty) {
@@ -543,7 +645,7 @@ class _TransactionCard extends StatelessWidget {
         typeLabel = 'Expense';
         break;
       case 'LOAN':
-        final loanType = transaction['loanType'] as String? ?? '';
+        final loanType = transaction['loan_type'] as String? ?? '';
         if (loanType == 'LENT') {
           typeColor = Colors.blue;
           typeIcon = Icons.account_balance_wallet;

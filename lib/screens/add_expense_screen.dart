@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:myapp/models/expense_model.dart';
-import 'package:myapp/services/api_service.dart';
+import 'package:myapp/providers/expense_provider.dart';
 import 'package:provider/provider.dart';
 
 
@@ -32,10 +32,10 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
   final _remarkController = TextEditingController();
   DateTime _selectedDate = DateTime.now();
   String _selectedCategory = 'Food';
-  TransactionType _selectedTransactionType = TransactionType.paid;
   TransactionCategory _selectedTransactionCategory = TransactionCategory.expense;
   PaymentMode _selectedPaymentMode = PaymentMode.cash;
-  bool _isBorrow = true; 
+  bool _isBorrow = true;
+  bool _isSubmitting = false;
 
   final List<String> _categories = [
     'Other',
@@ -77,9 +77,6 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
   @override
   void initState() {
     super.initState();
-    if (widget.transactionType != null) {
-      _selectedTransactionType = widget.transactionType!;
-    }
     if (widget.personName != null) {
       _personNameController.text = widget.personName!;
     }
@@ -94,10 +91,16 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
       if (enteredAmount == null || enteredAmount <= 0) {
         return;
       }
-      try {
-        final apiService = Provider.of<ApiService>(context, listen: false);
+      // Prevent duplicate submissions
+      if (_isSubmitting) return;
+      setState(() {
+        _isSubmitting = true;
+      });
 
-        await apiService.addPersonalTransaction({
+      try {
+        final provider = Provider.of<ExpenseProvider>(context, listen: false);
+
+        final success = await provider.addPersonalTransaction({
           "amount": enteredAmount,
           "name": _personNameController.text.trim(),
           "email": _emailController.text.trim().isEmpty
@@ -117,13 +120,21 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
         });
 
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Transaction added successfully'),
-            ),
-          );
-
-          Navigator.pop(context);
+          if (success) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Transaction added successfully'),
+              ),
+            );
+            // Navigate back after successful save
+            Navigator.pop(context);
+          } else {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(provider.errorMessage ?? 'Failed to add transaction'),
+              ),
+            );
+          }
         }
       } catch (e) {
         if (mounted) {
@@ -133,8 +144,13 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
             ),
           );
         }
+      } finally {
+        if (mounted) {
+          setState(() {
+            _isSubmitting = false;
+          });
+        }
       }
-    
     }
   }
 
@@ -143,13 +159,24 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
   @override
   Widget build(BuildContext context) {
     final isPersonal = !widget.isBusiness;
-    final appBarTitle = widget.isBusiness
-        ? 'Add Business Expense'
-        : (_selectedTransactionType == TransactionType.received
-            ? 'Add Money Received'
-            : _selectedTransactionType == TransactionType.loan
-            ? 'Add Loan'
-            : 'Add Money Paid');
+
+    // Dynamic screen title based on transaction type
+    String appBarTitle;
+    if (widget.isBusiness) {
+      appBarTitle = 'Add Business Expense';
+    } else if (_selectedTransactionCategory == TransactionCategory.income) {
+      appBarTitle = 'Add Income';
+    } else if (_selectedTransactionCategory == TransactionCategory.expense) {
+      appBarTitle = 'Add Expense';
+    } else if (_selectedTransactionCategory == TransactionCategory.loan) {
+      if (_isBorrow) {
+        appBarTitle = 'Borrow Money';
+      } else {
+        appBarTitle = 'Lend Money';
+      }
+    } else {
+      appBarTitle = 'Add Transaction';
+    }
 
     return Scaffold(
       appBar: AppBar(
@@ -200,7 +227,9 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                     const SizedBox(width: 8),
                     IconButton(
                       onPressed: () {
-                        // TODO: Implement contact picker
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Contact picker coming soon')),
+                        );
                       },
                       icon: const Icon(Icons.contacts),
                       tooltip: 'Select from contacts',
@@ -358,12 +387,21 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
               const Spacer(),
               const SizedBox(height: 16),
               ElevatedButton(
-                onPressed: _submitData,
+                onPressed: _isSubmitting ? null : _submitData,
                 style: ElevatedButton.styleFrom(
                   padding:
                       const EdgeInsets.symmetric(horizontal: 48, vertical: 12),
                 ),
-                child: Text(widget.isBusiness ? 'Add Expense' : 'Add Transaction'),
+                child: _isSubmitting
+                    ? const SizedBox(
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                        ),
+                      )
+                    : Text(widget.isBusiness ? 'Add Expense' : 'Add Transaction'),
               ),
             ],
           ),
