@@ -202,7 +202,7 @@ class ApiService with ChangeNotifier {
       debugPrint('Refreshing access token...');
 
       final response = await http.post(
-        Uri.parse('$_baseUrl/auth/refresh'),
+        Uri.parse('$_baseUrl/auth/refresh-token'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({'refreshToken': _refreshToken}),
       ).timeout(_timeout);
