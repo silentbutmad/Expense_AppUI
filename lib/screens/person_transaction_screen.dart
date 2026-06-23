@@ -1,0 +1,322 @@
+import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
+import 'package:myapp/models/expense_model.dart';
+import 'package:myapp/providers/expense_provider.dart';
+import 'package:provider/provider.dart';
+
+class PersonTransactionScreen extends StatefulWidget {
+  final String personName;
+
+  const PersonTransactionScreen({
+    super.key,
+    required this.personName,
+  });
+
+  @override
+  State<PersonTransactionScreen> createState() => _PersonTransactionScreenState();
+}
+
+class _PersonTransactionScreenState extends State<PersonTransactionScreen> {
+  @override
+  void initState() {
+    super.initState();
+    _loadTransactions();
+  }
+
+  Future<void> _loadTransactions() async {
+    final provider = Provider.of<ExpenseProvider>(context, listen: false);
+    await provider.fetchTransactionsByPerson(widget.personName);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final textTheme = theme.textTheme;
+
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(widget.personName),
+        backgroundColor: theme.scaffoldBackgroundColor,
+        elevation: 0,
+        foregroundColor: theme.colorScheme.onSurface,
+      ),
+      body: Consumer<ExpenseProvider>(
+        builder: (context, provider, child) {
+          final transactions = provider.personalTransactions;
+
+          // Calculate totals
+          double totalAmount = 0.0;
+          double totalLent = 0.0;
+          double totalBorrow = 0.0;
+
+          for (final tx in transactions) {
+            final amount = (tx['amount'] as num?)?.toDouble() ?? 0.0;
+            final transactionType = tx['transactionType'] as String?;
+            final loanType = tx['loanType'] as String?;
+
+            totalAmount += amount;
+
+            if (transactionType == 'LOAN') {
+              if (loanType == 'LENT') {
+                totalLent += amount;
+              } else if (loanType == 'BORROW') {
+                totalBorrow += amount;
+              }
+            }
+          }
+
+          final currentBalance = totalLent - totalBorrow;
+
+          return RefreshIndicator(
+            onRefresh: _loadTransactions,
+            child: SingleChildScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Summary Card
+                  Card(
+                    elevation: 4,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.all(20),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Summary',
+                            style: textTheme.headlineSmall,
+                          ),
+                          const SizedBox(height: 16),
+                          _buildSummaryRow(
+                            'Total Transactions',
+                            '₹${totalAmount.toStringAsFixed(2)}',
+                            theme,
+                          ),
+                          const SizedBox(height: 8),
+                          _buildSummaryRow(
+                            'Total Lent',
+                            '₹${totalLent.toStringAsFixed(2)}',
+                            theme,
+                            color: Colors.blue,
+                          ),
+                          const SizedBox(height: 8),
+                          _buildSummaryRow(
+                            'Total Borrow',
+                            '₹${totalBorrow.toStringAsFixed(2)}',
+                            theme,
+                            color: Colors.orange,
+                          ),
+                          const SizedBox(height: 8),
+                          _buildSummaryRow(
+                            'Current Balance',
+                            '₹${currentBalance.toStringAsFixed(2)}',
+                            theme,
+                            color: currentBalance >= 0 ? Colors.green : Colors.red,
+                            isBold: true,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 24),
+
+                  // Transactions List
+                  Text(
+                    'All Transactions',
+                    style: textTheme.headlineSmall,
+                  ),
+                  const SizedBox(height: 12),
+
+                  if (transactions.isEmpty)
+                    Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(40.0),
+                        child: Text(
+                          'No transactions found',
+                          style: textTheme.bodyLarge?.copyWith(
+                            color: Colors.grey,
+                          ),
+                        ),
+                      ),
+                    )
+                  else
+                    ListView.builder(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      itemCount: transactions.length,
+                      itemBuilder: (context, index) {
+                        final tx = transactions[index];
+                        return _TransactionCard(
+                          transaction: tx,
+                          onTap: () {
+                            context.push('/transaction-detail', extra: tx);
+                          },
+                        );
+                      },
+                    ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildSummaryRow(
+    String label,
+    String value,
+    ThemeData theme, {
+    Color? color,
+    bool isBold = false,
+  }) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(
+          label,
+          style: theme.textTheme.bodyMedium?.copyWith(
+            fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
+          ),
+        ),
+        Text(
+          value,
+          style: theme.textTheme.bodyLarge?.copyWith(
+            color: color ?? theme.colorScheme.primary,
+            fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _TransactionCard extends StatelessWidget {
+  final Map<String, dynamic> transaction;
+  final VoidCallback onTap;
+
+  const _TransactionCard({
+    required this.transaction,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final amount = (transaction['amount'] as num?)?.toDouble() ?? 0.0;
+    final transactionType = transaction['transactionType'] as String? ?? '';
+    final category = transaction['category'] as String? ?? '';
+    final date = transaction['date'] != null
+        ? DateTime.tryParse(transaction['date'].toString())
+        : null;
+    final paymentMode = transaction['paymentMode'] as String? ?? '';
+
+    Color typeColor;
+    IconData typeIcon;
+
+    switch (transactionType.toUpperCase()) {
+      case 'RECEIVED':
+        typeColor = Colors.green;
+        typeIcon = Icons.arrow_downward;
+        break;
+      case 'PAID':
+        typeColor = Colors.red;
+        typeIcon = Icons.arrow_upward;
+        break;
+      case 'LOAN':
+        final loanType = transaction['loanType'] as String? ?? '';
+        if (loanType == 'LENT') {
+          typeColor = Colors.blue;
+          typeIcon = Icons.account_balance_wallet;
+        } else {
+          typeColor = Colors.orange;
+          typeIcon = Icons.account_balance;
+        }
+        break;
+      default:
+        typeColor = Colors.grey;
+        typeIcon = Icons.help;
+    }
+
+    return Card(
+      margin: const EdgeInsets.symmetric(vertical: 8),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              // Type Icon
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: typeColor.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(
+                  typeIcon,
+                  color: typeColor,
+                  size: 24,
+                ),
+              ),
+              const SizedBox(width: 12),
+
+              // Details
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      category,
+                      style: theme.textTheme.bodyLarge?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        if (date != null)
+                          Text(
+                            DateFormat.yMMMd().format(date),
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: Colors.grey,
+                            ),
+                          ),
+                        if (date != null && paymentMode.isNotEmpty)
+                          Text(
+                            ' • $paymentMode',
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: Colors.grey,
+                            ),
+                          ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+
+              // Amount
+              Text(
+                '₹${amount.toStringAsFixed(2)}',
+                style: theme.textTheme.bodyLarge?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: typeColor,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}

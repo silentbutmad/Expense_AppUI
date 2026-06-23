@@ -14,6 +14,7 @@ import 'package:myapp/screens/login_screen.dart';
 import 'package:myapp/screens/ocr_screen.dart';
 import 'package:myapp/screens/otp_screen.dart';
 import 'package:myapp/screens/personal_tab_screen.dart' show PersonalTabContent;
+import 'package:myapp/screens/person_transaction_screen.dart';
 import 'package:myapp/screens/profile_screen.dart';
 import 'package:myapp/screens/register_screen.dart';
 import 'package:myapp/screens/reports_screen.dart';
@@ -21,6 +22,7 @@ import 'package:myapp/screens/reset_password_screen.dart';
 import 'package:myapp/screens/settings_screen.dart';
 import 'package:myapp/screens/splash_screen.dart';
 import 'package:myapp/screens/success_screen.dart';
+import 'package:myapp/screens/transaction_detail_screen.dart';
 import 'package:myapp/theme/app_theme.dart';
 import 'package:provider/provider.dart';
 import 'package:myapp/services/api_service.dart';
@@ -142,6 +144,20 @@ class _MyAppState extends State<MyApp> {
           builder: (context, state) => const PersonalTabContent(),
         ),
         GoRoute(
+          path: '/person-transactions',
+          builder: (context, state) {
+            final personName = state.uri.queryParameters['name'] ?? '';
+            return PersonTransactionScreen(personName: personName);
+          },
+        ),
+        GoRoute(
+          path: '/transaction-detail',
+          builder: (context, state) {
+            final transaction = state.extra as Map<String, dynamic>;
+            return TransactionDetailScreen(transaction: transaction);
+          },
+        ),
+        GoRoute(
           path: '/success',
           builder: (context, state) {
             final message = state.uri.queryParameters['message'] ?? 'Success!';
@@ -163,7 +179,7 @@ class _MyAppState extends State<MyApp> {
     return MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => ThemeProvider()),
-        ChangeNotifierProvider(create: (_) => ExpenseProvider()),
+        ChangeNotifierProvider(create: (_) => ExpenseProvider(widget.apiService)),
         ChangeNotifierProvider.value(value: widget.apiService),
       ],
       child: Consumer<ThemeProvider>(

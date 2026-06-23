@@ -42,6 +42,8 @@ dependencies:
   http: ^1.2.0   # 👈 ADD HERE
   shared_preferences: ^2.2.2   # 👈 ALSO ADD (for token storage)
   flutter_secure_storage: ^10.0.0
+  share_plus: ^7.2.1
+  url_launcher: ^6.2.2
 
 
 dev_dependencies:

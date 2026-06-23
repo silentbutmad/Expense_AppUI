@@ -496,6 +496,11 @@ class ApiService with ChangeNotifier {
     return response;
   }
 
+  Future<Map<String, dynamic>> getSummary() async {
+    final response = await _get('/expenses/summary');
+    return response as Map<String, dynamic>;
+  }
+
   Future<List<dynamic>> getAllPersonalTransactions() async {
     final response = await _get('/expenses/allPersonalTransactions');
     if (response is List) {
@@ -504,6 +509,48 @@ class ApiService with ChangeNotifier {
       return List<dynamic>.from(response['transactions'] ?? []);
     }
     return [];
+  }
+
+  Future<Map<String, dynamic>> getTransactionById(String id) async {
+    final response = await _get('/expenses/transaction/$id');
+    return response as Map<String, dynamic>;
+  }
+
+  Future<List<dynamic>> getTransactionsByPerson(String name) async {
+    final encodedName = Uri.encodeComponent(name);
+    final response = await _get('/expenses/transactions/person/$encodedName');
+    if (response is List) {
+      return response;
+    } else if (response is Map<String, dynamic>) {
+      return List<dynamic>.from(response['transactions'] ?? []);
+    }
+    return [];
+  }
+
+  Future<Map<String, dynamic>> updateTransaction(
+    String id,
+    Map<String, dynamic> data,
+  ) async {
+    final response = await _put('/expenses/transaction/$id', body: data);
+    return response as Map<String, dynamic>;
+  }
+
+  Future<void> deleteTransaction(String id) async {
+    await _delete('/expenses/transaction/$id');
+  }
+
+  Future<Map<String, dynamic>> sendReminder(
+    String transactionId,
+    String channel,
+  ) async {
+    final response = await _post(
+      '/expenses/reminder',
+      body: {
+        'transactionId': transactionId,
+        'channel': channel,
+      },
+    );
+    return response as Map<String, dynamic>;
   }
 
   Future<Map<String, dynamic>> addBusinessTransaction(
