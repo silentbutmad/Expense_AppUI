@@ -38,10 +38,7 @@ class ExpenseList extends StatelessWidget {
               size: 40,
               color: Theme.of(context).colorScheme.primary,
             ),
-            title: Text(
-              transaction.title,
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
+           
             subtitle: Text(
               DateFormat.yMMMd().format(transaction.date),
               style: Theme.of(context).textTheme.bodySmall,

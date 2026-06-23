@@ -252,11 +252,7 @@ class _PersonalTabContentState extends State<PersonalTabContent> {
                                     crossAxisAlignment:
                                         CrossAxisAlignment.start,
                                     children: [
-                                      Text(
-                                        transaction.title,
-                                        style: textTheme.titleMedium,
-                                      ),
-                                      const SizedBox(height: 4),
+                                      
                                       Text(
                                         DateFormat.yMMMd().format(
                                           transaction.date,
@@ -310,7 +306,7 @@ class _PersonalTabContentState extends State<PersonalTabContent> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text(transaction.title),
+        
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,

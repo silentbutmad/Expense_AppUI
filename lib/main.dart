@@ -23,6 +23,8 @@ import 'package:myapp/screens/splash_screen.dart';
 import 'package:myapp/screens/success_screen.dart';
 import 'package:myapp/theme/app_theme.dart';
 import 'package:provider/provider.dart';
+import 'package:myapp/services/api_service.dart';
+
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -156,6 +158,7 @@ class _MyAppState extends State<MyApp> {
       providers: [
         ChangeNotifierProvider(create: (_) => ThemeProvider()),
         ChangeNotifierProvider(create: (_) => ExpenseProvider()),
+        ChangeNotifierProvider(create: (_) => ApiService()),
       ],
       child: Consumer<ThemeProvider>(
         builder: (context, themeProvider, child) {

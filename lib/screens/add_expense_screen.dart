@@ -4,6 +4,10 @@ import 'package:myapp/models/expense_model.dart';
 import 'package:myapp/providers/expense_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:uuid/uuid.dart';
+import 'package:provider/provider.dart';
+import 'package:myapp/services/api_service.dart';
+
+
 
 class AddExpenseScreen extends StatefulWidget {
   final bool isBusiness;
@@ -25,7 +29,6 @@ class AddExpenseScreen extends StatefulWidget {
 
 class _AddExpenseScreenState extends State<AddExpenseScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _titleController = TextEditingController();
   final _amountController = TextEditingController();
   final _personNameController = TextEditingController();
   final _emailController = TextEditingController();
@@ -88,7 +91,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
     }
   }
 
-  void _submitData() {
+  Future<void> _submitData() async {
     if (_formKey.currentState!.validate()) {
       final enteredAmount = double.tryParse(_amountController.text);
       if (enteredAmount == null || enteredAmount <= 0) {
@@ -96,7 +99,6 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
       }
       final newExpense = Expense(
         id: const Uuid().v4(),
-        title: _titleController.text,
         amount: enteredAmount,
         date: _selectedDate,
         category: _selectedCategory,
@@ -115,9 +117,48 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
             : null,
         isBorrow: _isLoan ? _isBorrow : null,
       );
-      Provider.of<ExpenseProvider>(context, listen: false)
-          .addExpense(newExpense);
-      Navigator.of(context).pop();
+
+      try {
+        final apiService = Provider.of<ApiService>(context, listen: false);
+
+        await apiService.addPersonalTransaction({
+          "amount": enteredAmount,
+          "name": _personNameController.text.trim(),
+          "email": _emailController.text.trim().isEmpty
+              ? null
+              : _emailController.text.trim(),
+          "category": _isLoan ? null : _selectedCategory,
+          "remark": _remarkController.text.trim().isEmpty
+              ? null
+              : _remarkController.text.trim(),
+          "payment_mode": _selectedPaymentMode.name.toUpperCase(),
+          "transaction_type":
+              _selectedTransactionCategory.name.toUpperCase(),
+          "loan_type": _isLoan
+              ? (_isBorrow ? "BORROW" : "LENT")
+              : null,
+          "transaction_date": _selectedDate.toIso8601String(),
+        });
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Transaction added successfully'),
+            ),
+          );
+
+          Navigator.pop(context);
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(e.toString()),
+            ),
+          );
+        }
+      }
+    
     }
   }
 
@@ -357,7 +398,6 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
 
   @override
   void dispose() {
-    _titleController.dispose();
     _amountController.dispose();
     _personNameController.dispose();
     _emailController.dispose();

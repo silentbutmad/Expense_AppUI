@@ -131,7 +131,6 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
                     if (formKey.currentState!.validate()) {
                       final newExpense = Expense(
                           id: const Uuid().v4(),
-                          title: titleController.text,
                           amount: double.parse(amountController.text),
                           date: selectedDate!,
                           category: category);
@@ -233,10 +232,6 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
                               _getIconForCategory(expense.category),
                               color: theme.colorScheme.primary,
                             ),
-                          ),
-                          title: Text(
-                            expense.title,
-                            style: const TextStyle(fontWeight: FontWeight.bold),
                           ),
                           subtitle: Text(
                             DateFormat.yMMMd().format(expense.date),
