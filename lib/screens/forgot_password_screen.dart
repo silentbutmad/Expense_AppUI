@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'dart:convert';
-import 'package:http/http.dart' as http;
+import 'package:myapp/services/api_service.dart';
+import 'package:provider/provider.dart';
 
 class ForgotPasswordScreen extends StatefulWidget {
   const ForgotPasswordScreen({super.key});
@@ -13,51 +13,7 @@ class ForgotPasswordScreen extends StatefulWidget {
 class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
-
-  bool _isLoading = false;
   String? _errorMessage;
-
-  Future<void> _sendOtp() async {
-    if (_formKey.currentState!.validate()) {
-      setState(() {
-        _isLoading = true;
-        _errorMessage = null;
-      });
-
-      try {
-        final response = await http.post(
-          Uri.parse('https://expense-api-gateway.onrender.com/auth/forgot-password'),
-          headers: {'Content-Type': 'application/json'},
-          body: jsonEncode({
-            "email": _emailController.text,
-          }),
-        );
-
-        final data = jsonDecode(response.body);
-
-        if (response.statusCode == 200) {
-          if (mounted) {
-            context.push('/reset-password', extra: {
-              "email": _emailController.text,
-            });
-          }
-        } else {
-          setState(() {
-            _errorMessage = data['message'];
-          });
-        }
-
-      } catch (e) {
-        setState(() {
-          _errorMessage = 'Server error: $e';
-        });
-      } finally {
-        setState(() {
-          _isLoading = false;
-        });
-      }
-    }
-  }
 
   @override
   void dispose() {
@@ -65,8 +21,32 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     super.dispose();
   }
 
+  Future<void> _sendOtp() async {
+    if (_formKey.currentState!.validate()) {
+      try {
+        final apiService = Provider.of<ApiService>(context, listen: false);
+
+        await apiService.forgotPassword(_emailController.text);
+
+        if (mounted) {
+          context.push('/reset-password', extra: {
+            "email": _emailController.text,
+          });
+        }
+      } catch (e) {
+        if (mounted) {
+          setState(() {
+            _errorMessage = e.toString().replaceAll('Exception: ', '');
+          });
+        }
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final apiService = Provider.of<ApiService>(context);
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Forgot Password'),
@@ -106,8 +86,8 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
               const SizedBox(height: 10),
 
               ElevatedButton(
-                onPressed: _isLoading ? null : _sendOtp,
-                child: _isLoading
+                onPressed: apiService.isLoading ? null : _sendOtp,
+                child: apiService.isLoading
                     ? const CircularProgressIndicator(color: Colors.white)
                     : const Text('Send OTP'),
               ),

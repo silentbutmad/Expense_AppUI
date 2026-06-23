@@ -1,11 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:myapp/models/expense_model.dart';
-import 'package:myapp/providers/expense_provider.dart';
-import 'package:provider/provider.dart';
-import 'package:uuid/uuid.dart';
-import 'package:provider/provider.dart';
 import 'package:myapp/services/api_service.dart';
+import 'package:provider/provider.dart';
 
 
 
@@ -97,27 +94,6 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
       if (enteredAmount == null || enteredAmount <= 0) {
         return;
       }
-      final newExpense = Expense(
-        id: const Uuid().v4(),
-        amount: enteredAmount,
-        date: _selectedDate,
-        category: _selectedCategory,
-        contextType: widget.isBusiness ? ContextType.business : ContextType.personal,
-        transactionCategory: _selectedTransactionCategory,
-        personName: _personNameController.text.trim().isEmpty
-            ? null
-            : _personNameController.text.trim(),
-        transactionType: widget.isBusiness ? null : _selectedTransactionType,
-        remark: _remarkController.text.trim().isEmpty
-            ? null
-            : _remarkController.text.trim(),
-        paymentMode: _selectedPaymentMode,
-        email: _isLoan && _emailController.text.trim().isNotEmpty
-            ? _emailController.text.trim()
-            : null,
-        isBorrow: _isLoan ? _isBorrow : null,
-      );
-
       try {
         final apiService = Provider.of<ApiService>(context, listen: false);
 

@@ -1,13 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'dart:convert';
-import 'package:http/http.dart' as http;
-import 'package:shared_preferences/shared_preferences.dart';
-
+import 'package:myapp/services/api_service.dart';
+import 'package:provider/provider.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
- 
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();
@@ -19,68 +16,47 @@ class _LoginScreenState extends State<LoginScreen> {
   final _passwordController = TextEditingController();
   String? _errorMessage;
   bool _isPasswordVisible = false;
-  bool _isLoading = false;
 
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
 
-Future<void> _login() async {
-  if (_formKey.currentState!.validate()) {
-    setState(() {
-      _isLoading = true;   // ✅ start loading
-      _errorMessage = null;
-    });
+  Future<void> _login() async {
+    if (_formKey.currentState!.validate()) {
+      try {
+        final apiService = Provider.of<ApiService>(context, listen: false);
 
-    try {
-      final response = await http.post(
-        Uri.parse('https://expense-api-gateway.onrender.com/auth/login'),
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: jsonEncode({
-          "email": _emailController.text,
-          "password": _passwordController.text,
-        }),
-      );
-
-      final data = jsonDecode(response.body);
-
-      if (response.statusCode == 200) {
-        // ✅ SUCCESS
-
-        final accessToken = data['accessToken'];
-        final refreshToken = data['refreshToken'];
-
-        // Access token stored in SharedPreferences
-
-        // 👉 You can store token here (SharedPreferences later)
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.setString('accessToken', accessToken);
-        await prefs.setString('refreshToken', refreshToken);
+        await apiService.login(
+          _emailController.text,
+          _passwordController.text,
+        );
 
         if (mounted) {
-          context.go('/'); // redirect to Home
+          context.go('/');
         }
-
-      } else {
-        // ❌ ERROR FROM SERVER
-        setState(() {
-          _errorMessage = data['message'] ?? 'Login failed';
-        });
+      } on ApiUnauthorizedException catch (e) {
+        if (mounted) {
+          setState(() {
+            _errorMessage = e.message;
+          });
+        }
+      } catch (e) {
+        if (mounted) {
+          setState(() {
+            _errorMessage = e.toString().replaceAll('Exception: ', '');
+          });
+        }
       }
-    } catch (e) {
-      setState(() {
-        _errorMessage = 'Server error: $e';
-      });
-    }
-    finally {
-      setState(() {
-        _isLoading = false;  // ✅ stop loading
-      });
     }
   }
-}
 
   @override
   Widget build(BuildContext context) {
+    final apiService = Provider.of<ApiService>(context);
+
     return Scaffold(
       body: Center(
         child: SingleChildScrollView(
@@ -163,22 +139,27 @@ Future<void> _login() async {
                       style: TextStyle(color: Theme.of(context).colorScheme.error),
                     ),
                   ),
+                if (apiService.isLoading)
+                  const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 16),
+                    child: Center(
+                      child: SizedBox(
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ),
                 const SizedBox(height: 16),
                 ElevatedButton(
-                  onPressed: _isLoading ? null : _login,  // disable while loading
+                  onPressed: apiService.isLoading ? null : _login,
                   style: ElevatedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 16),
                   ),
-                  child: _isLoading
-                    ? const SizedBox(
-                      height: 20,
-                      width: 20,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: Colors.white,
-                      ),  
-                    )
-                  : const Text('Login'),
+                  child: const Text('Login'),
                 ),
                 const SizedBox(height: 24),
                 Row(
@@ -198,4 +179,4 @@ Future<void> _login() async {
       ),
     );
   }
-}  
+}

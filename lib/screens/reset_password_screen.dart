@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'dart:convert';
-import 'package:http/http.dart' as http;
+import 'package:myapp/services/api_service.dart';
+import 'package:provider/provider.dart';
 
 class ResetPasswordScreen extends StatefulWidget {
   final String email;
@@ -19,50 +19,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
 
-  bool _isLoading = false;
   String? _errorMessage;
-
-  Future<void> _resetPassword() async {
-    if (_formKey.currentState!.validate()) {
-      setState(() {
-        _isLoading = true;
-        _errorMessage = null;
-      });
-
-      try {
-        final response = await http.post(
-          Uri.parse('https://expense-api-gateway.onrender.com/auth/reset-password'),
-          headers: {'Content-Type': 'application/json'},
-          body: jsonEncode({
-            "email": widget.email,
-            "otp": _otpController.text,
-            "newPassword": _passwordController.text,
-          }),
-        );
-
-        final data = jsonDecode(response.body);
-
-        if (response.statusCode == 200) {
-          if (mounted) {
-            context.go('/success?message=Password Reset Successful&routeName=/login');
-          }
-        } else {
-          setState(() {
-            _errorMessage = data['message'];
-          });
-        }
-
-      } catch (e) {
-        setState(() {
-          _errorMessage = 'Server error: $e';
-        });
-      } finally {
-        setState(() {
-          _isLoading = false;
-        });
-      }
-    }
-  }
 
   @override
   void dispose() {
@@ -72,8 +29,34 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
     super.dispose();
   }
 
+  Future<void> _resetPassword() async {
+    if (_formKey.currentState!.validate()) {
+      try {
+        final apiService = Provider.of<ApiService>(context, listen: false);
+
+        await apiService.resetPassword(
+          email: widget.email,
+          otp: _otpController.text,
+          newPassword: _passwordController.text,
+        );
+
+        if (mounted) {
+          context.go('/success?message=Password Reset Successful&routeName=/login');
+        }
+      } catch (e) {
+        if (mounted) {
+          setState(() {
+            _errorMessage = e.toString().replaceAll('Exception: ', '');
+          });
+        }
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final apiService = Provider.of<ApiService>(context);
+
     return Scaffold(
       appBar: AppBar(title: const Text('Reset Password')),
       body: Padding(
@@ -129,8 +112,8 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                 Text(_errorMessage!, style: const TextStyle(color: Colors.red)),
 
               ElevatedButton(
-                onPressed: _isLoading ? null : _resetPassword,
-                child: _isLoading
+                onPressed: apiService.isLoading ? null : _resetPassword,
+                child: apiService.isLoading
                     ? const CircularProgressIndicator(color: Colors.white)
                     : const Text('Reset Password'),
               ),

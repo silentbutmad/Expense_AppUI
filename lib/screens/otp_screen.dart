@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'dart:convert';
-import 'package:http/http.dart' as http;
+import 'package:myapp/services/api_service.dart';
+import 'package:provider/provider.dart';
 
 class OtpScreen extends StatefulWidget {
   final String email;
@@ -14,53 +14,36 @@ class OtpScreen extends StatefulWidget {
 
 class _OtpScreenState extends State<OtpScreen> {
   final _otpController = TextEditingController();
-  bool _isLoading = false;
   String? _errorMessage;
 
+  @override
+  void dispose() {
+    _otpController.dispose();
+    super.dispose();
+  }
+
   Future<void> _verifyOtp() async {
-    setState(() {
-      _isLoading = true;
-      _errorMessage = null;
-    });
-
     try {
-      final response = await http.post(
-        Uri.parse('https://expense-api-gateway.onrender.com/auth/verify-register'),
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: jsonEncode({
-          "email": widget.email,
-          "otp": _otpController.text,
-        }),
-      );
+      final apiService = Provider.of<ApiService>(context, listen: false);
 
-      final data = jsonDecode(response.body);
+      await apiService.verifyOtp(widget.email, _otpController.text);
 
-      if (response.statusCode == 201) {
-        // ✅ SUCCESS
-        if (mounted) {
-          context.push('/success?message=Registration Successful!&routeName=/login');
-        }
-      } else {
+      if (mounted) {
+        context.push('/success?message=Registration Successful!&routeName=/login');
+      }
+    } catch (e) {
+      if (mounted) {
         setState(() {
-          _errorMessage = data['message'] ?? 'Invalid OTP';
+          _errorMessage = e.toString().replaceAll('Exception: ', '');
         });
       }
-
-    } catch (e) {
-      setState(() {
-        _errorMessage = 'Server error: $e';
-      });
-    } finally {
-      setState(() {
-        _isLoading = false;
-      });
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final apiService = Provider.of<ApiService>(context);
+
     return Scaffold(
       appBar: AppBar(title: const Text('Verify OTP')),
       body: Padding(
@@ -88,8 +71,8 @@ class _OtpScreenState extends State<OtpScreen> {
             const SizedBox(height: 10),
 
             ElevatedButton(
-              onPressed: _isLoading ? null : _verifyOtp,
-              child: _isLoading
+              onPressed: apiService.isLoading ? null : _verifyOtp,
+              child: apiService.isLoading
                   ? const CircularProgressIndicator(color: Colors.white)
                   : const Text('Verify OTP'),
             ),

@@ -1,9 +1,8 @@
-// ignore_for_file: deprecated_member_use
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:provider/provider.dart';
 import 'package:myapp/providers/theme_provider.dart';
+import 'package:myapp/services/api_service.dart';
+import 'package:provider/provider.dart';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
@@ -11,6 +10,7 @@ class SettingsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final themeProvider = Provider.of<ThemeProvider>(context);
+    final apiService = Provider.of<ApiService>(context);
 
     return Scaffold(
       appBar: AppBar(
@@ -78,7 +78,7 @@ class SettingsScreen extends StatelessWidget {
             leading: const Icon(Icons.logout),
             title: const Text('Logout'),
             onTap: () async {
-              await FirebaseAuth.instance.signOut();
+              await apiService.logout();
               if (context.mounted) {
                 context.go('/login');
               }

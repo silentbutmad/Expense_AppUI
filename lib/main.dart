@@ -25,17 +25,23 @@ import 'package:myapp/theme/app_theme.dart';
 import 'package:provider/provider.dart';
 import 'package:myapp/services/api_service.dart';
 
-
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
-  runApp(const MyApp());
+
+  // Load session before runApp
+  final apiService = ApiService();
+  await apiService.loadSession();
+
+  runApp(MyApp(apiService: apiService));
 }
 
 class MyApp extends StatefulWidget {
-  const MyApp({super.key});
+  final ApiService apiService;
+
+  const MyApp({super.key, required this.apiService});
 
   @override
   State<MyApp> createState() => _MyAppState();
@@ -158,7 +164,7 @@ class _MyAppState extends State<MyApp> {
       providers: [
         ChangeNotifierProvider(create: (_) => ThemeProvider()),
         ChangeNotifierProvider(create: (_) => ExpenseProvider()),
-        ChangeNotifierProvider(create: (_) => ApiService()),
+        ChangeNotifierProvider.value(value: widget.apiService),
       ],
       child: Consumer<ThemeProvider>(
         builder: (context, themeProvider, child) {

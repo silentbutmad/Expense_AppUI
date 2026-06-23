@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'dart:convert';
-import 'package:http/http.dart' as http;
+import 'package:myapp/services/api_service.dart';
+import 'package:provider/provider.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -20,7 +20,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _passwordController = TextEditingController();
   final _conformPasswordController = TextEditingController();
 
-  bool _isLoading = false;
   String? _errorMessage;
 
   bool _isPasswordVisible = false;
@@ -38,53 +37,31 @@ class _RegisterScreenState extends State<RegisterScreen> {
     super.dispose();
   }
 
-
   Future<void> _register() async {
     if (_formKey.currentState!.validate()) {
-      setState(() {
-        _isLoading = true;
-        _errorMessage = null;
-      });
-
       try {
-        final response = await http.post(
-          Uri.parse('https://expense-api-gateway.onrender.com/auth/start-register'),
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: jsonEncode({
-            "firstname": _firstNameController.text,
-            "lastname": _lastNameController.text,
-            "email": _emailController.text,
-            "mobile": _mobileController.text,
-            "password": _passwordController.text,
-            "conform_password": _conformPasswordController.text,
-          }),
-        );
+        final apiService = Provider.of<ApiService>(context, listen: false);
 
-        final data = jsonDecode(response.body);
+        await apiService.register({
+          "firstname": _firstNameController.text,
+          "lastname": _lastNameController.text,
+          "email": _emailController.text,
+          "mobile": _mobileController.text,
+          "password": _passwordController.text,
+          "conform_password": _conformPasswordController.text,
+        });
 
-        if (response.statusCode == 200) {
-          // ✅ Navigate to OTP screen
-          if (mounted) {
-            context.push('/otp', extra: {
-              "email": _emailController.text
-            });
-          }
-        } else {
-          setState(() {
-            _errorMessage = data['message'] ?? 'Registration failed';
+        if (mounted) {
+          context.push('/otp', extra: {
+            "email": _emailController.text
           });
         }
-
       } catch (e) {
-        setState(() {
-          _errorMessage = 'Server error: $e';
-        });
-      } finally {
-        setState(() {
-          _isLoading = false;
-        });
+        if (mounted) {
+          setState(() {
+            _errorMessage = e.toString().replaceAll('Exception: ', '');
+          });
+        }
       }
     }
   }
@@ -149,6 +126,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final apiService = Provider.of<ApiService>(context);
+
     return Scaffold(
       appBar: AppBar(title: const Text('Register')),
       body: Stack(
@@ -200,8 +179,17 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   const SizedBox(height: 10),
 
                   ElevatedButton(
-                    onPressed: _isLoading ? null : _register,
-                    child: const Text('Register'),
+                    onPressed: apiService.isLoading ? null : _register,
+                    child: apiService.isLoading
+                        ? const SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
+                        : const Text('Register'),
                   ),
 
                   TextButton(
@@ -213,7 +201,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
             ),
           ),
 
-          if (_isLoading)
+          if (apiService.isLoading)
             Container(
               color: Colors.black.withValues(alpha: 0.3),
               child: const Center(child: CircularProgressIndicator()),
