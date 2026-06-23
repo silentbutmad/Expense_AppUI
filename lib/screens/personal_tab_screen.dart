@@ -77,10 +77,10 @@ class _PersonalTabContentState extends State<PersonalTabContent> {
     // Apply type filter
     switch (_selectedFilter) {
       case 'Income':
-        filtered = filtered.where((tx) => tx['transaction_type'] == 'RECEIVED').toList();
+        filtered = filtered.where((tx) => tx['transaction_type'] == 'INCOME').toList();
         break;
       case 'Expense':
-        filtered = filtered.where((tx) => tx['transaction_type'] == 'PAID').toList();
+        filtered = filtered.where((tx) => tx['transaction_type'] == 'EXPENSE').toList();
         break;
       case 'Loan':
         filtered = filtered.where((tx) => tx['transaction_type'] == 'LOAN').toList();
@@ -99,7 +99,7 @@ class _PersonalTabContentState extends State<PersonalTabContent> {
         filtered = filtered.where((tx) => tx['payment_mode'] == 'CASH').toList();
         break;
       case 'Online':
-        filtered = filtered.where((tx) => tx['payment_mode'] == 'ONLINE').toList();
+        filtered = filtered.where((tx) => tx['payment_mode'] == 'UPI').toList();
         break;
       case 'Category':
         // Category filter would need a sub-filter, for now show all
@@ -619,12 +619,12 @@ class _CompactTransactionCard extends StatelessWidget {
     String typeLabel;
 
     switch (transactionType.toUpperCase()) {
-      case 'RECEIVED':
+      case 'INCOME':
         typeColor = Colors.green;
         typeIcon = Icons.arrow_downward;
         typeLabel = 'Income';
         break;
-      case 'PAID':
+      case 'EXPENSE':
         typeColor = Colors.red;
         typeIcon = Icons.arrow_upward;
         typeLabel = 'Expense';

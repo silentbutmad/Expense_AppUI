@@ -43,17 +43,15 @@ class _HomeScreenState extends State<HomeScreen> {
 
     final isBusiness = _mode == ExpenseMode.business;
 
-    // ✅ FILTER USING YOUR FIELD
+    // Use backend summary for totals (consistent data source)
+    final totalIncome = expenseProvider.totalIncome;
+    final totalExpenses = expenseProvider.totalExpense;
+    final totalBalance = expenseProvider.totalBalance;
+
+    // Filter local expenses for display only
     final filteredExpenses = expenseProvider.expenses
         .where((e) => e.isBusinessExpense == isBusiness)
         .toList();
-
-    // ✅ Calculate based on filtered data
-    final totalIncome = expenseProvider.totalIncome;
-    final totalExpenses = filteredExpenses.fold(
-        0.0, (sum, item) => sum + item.amount);
-
-    final totalBalance = totalIncome - totalExpenses;
 
     final textTheme = Theme.of(context).textTheme;
 

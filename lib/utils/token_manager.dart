@@ -1,3 +1,5 @@
+import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 class TokenManager {
@@ -42,9 +44,13 @@ class TokenManager {
   static Future<Map<String, dynamic>?> getUserData() async {
     final userDataString = await _storage.read(key: _userDataKey);
     if (userDataString != null) {
-      // Parse the string back to map (simple parsing for demo)
-      // In production, you might want to store as JSON string properly
-      return {'raw': userDataString};
+      try {
+        // Parse the JSON string back to Map
+        return Map<String, dynamic>.from(jsonDecode(userDataString));
+      } catch (e) {
+        debugPrint('Error parsing user data: $e');
+        return null;
+      }
     }
     return null;
   }
