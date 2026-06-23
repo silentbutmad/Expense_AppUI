@@ -5,6 +5,7 @@ import 'package:myapp/screens/personal_tab_screen.dart' show PersonalTabContent;
 import 'package:myapp/widgets/expense_list.dart';
 import 'package:myapp/widgets/expense_pie_chart.dart';
 import 'package:provider/provider.dart';
+import 'package:myapp/models/expense_model.dart';
 
 enum ExpenseMode { personal, business }
 
@@ -177,7 +178,11 @@ class _HomeScreenState extends State<HomeScreen> {
                     context,
                     icon: Icons.add_card,
                     label: 'Add Revenue',
-                    onPressed: () => context.push('/add-income', extra: true),
+                    onPressed: () => context.push('/add-expense', extra: {
+                      'isBusiness': true,
+                      'transactionType': TransactionType.received,
+                      'transactionCategory': TransactionCategory.income,
+                    }),
                   ),
                 ],
               ),

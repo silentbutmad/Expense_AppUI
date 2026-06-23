@@ -28,12 +28,14 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
   final _titleController = TextEditingController();
   final _amountController = TextEditingController();
   final _personNameController = TextEditingController();
+  final _emailController = TextEditingController();
   final _remarkController = TextEditingController();
   DateTime _selectedDate = DateTime.now();
   String _selectedCategory = 'Food';
   TransactionType _selectedTransactionType = TransactionType.paid;
   TransactionCategory _selectedTransactionCategory = TransactionCategory.expense;
   PaymentMode _selectedPaymentMode = PaymentMode.cash;
+  bool _isBorrow = true; 
 
   final List<String> _categories = [
     'Other',
@@ -108,12 +110,18 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
             ? null
             : _remarkController.text.trim(),
         paymentMode: _selectedPaymentMode,
+        email: _isLoan && _emailController.text.trim().isNotEmpty
+            ? _emailController.text.trim()
+            : null,
+        isBorrow: _isLoan ? _isBorrow : null,
       );
       Provider.of<ExpenseProvider>(context, listen: false)
           .addExpense(newExpense);
       Navigator.of(context).pop();
     }
   }
+
+   bool get _isLoan => _selectedTransactionCategory == TransactionCategory.loan;
 
   @override
   Widget build(BuildContext context) {
@@ -122,6 +130,8 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
         ? 'Add Business Expense'
         : (_selectedTransactionType == TransactionType.received
             ? 'Add Money Received'
+            : _selectedTransactionType == TransactionType.loan
+            ? 'Add Loan'
             : 'Add Money Paid');
 
     return Scaffold(
@@ -129,25 +139,12 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
         title: Text(appBarTitle),
       ),
       body: Padding(
+      
         padding: const EdgeInsets.all(16.0),
         child: Form(
           key: _formKey,
           child: Column(
             children: <Widget>[
-              TextFormField(
-                controller: _titleController,
-                decoration: const InputDecoration(
-                  labelText: 'Title',
-                  border: OutlineInputBorder(),
-                ),
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Please enter a title.';
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 16),
               TextFormField(
                 controller: _amountController,
                 decoration: const InputDecoration(
@@ -168,6 +165,8 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                   return null;
                 },
               ),
+
+
               const SizedBox(height: 16),
               if (isPersonal) ...[
                 Row(
@@ -192,54 +191,48 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                   ],
                 ),
                 const SizedBox(height: 16),
-                DropdownButtonFormField<TransactionCategory>(
-                  initialValue: _selectedTransactionCategory,
-                  items: const [
-                    DropdownMenuItem(
-                      value: TransactionCategory.income,
-                      child: Text('Income'),
+                if (_isLoan) ...[
+                  TextFormField(
+                    controller: _emailController,
+                    decoration: const InputDecoration(
+                      labelText: 'Email ID',
+                      border: OutlineInputBorder(),
                     ),
-                    DropdownMenuItem(
-                      value: TransactionCategory.expense,
-                      child: Text('Expense'),
-                    ),
-                    DropdownMenuItem(
-                      value: TransactionCategory.loan,
-                      child: Text('Loan'),
-                    ),
-                  ],
-                  onChanged: (newValue) {
-                    if (newValue != null) {
+                    keyboardType: TextInputType.emailAddress,
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return 'Please enter an email ID.';
+                      }
+                      if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value)) {
+                        return 'Please enter a valid email.';
+                      }
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                  
+                ],
+                if (!_isLoan) ...[
+                  DropdownButtonFormField(
+                    initialValue: _selectedCategory,
+                    items: _categories.map((String category) {
+                      return DropdownMenuItem(
+                        value: category,
+                        child: Text(category),
+                      );
+                    }).toList(),
+                    onChanged: (newValue) {
                       setState(() {
-                        _selectedTransactionCategory = newValue;
+                        _selectedCategory = newValue as String;
                       });
-                    }
-                  },
-                  decoration: const InputDecoration(
-                    labelText: 'Category',
-                    border: OutlineInputBorder(),
+                    },
+                    decoration: const InputDecoration(
+                      labelText: 'Category',
+                      border: OutlineInputBorder(),
+                    ),
                   ),
-                ),
-                const SizedBox(height: 16),
-                DropdownButtonFormField(
-                  initialValue: _selectedCategory,
-                  items: _categories.map((String category) {
-                    return DropdownMenuItem(
-                      value: category,
-                      child: Text(category),
-                    );
-                  }).toList(),
-                  onChanged: (newValue) {
-                    setState(() {
-                      _selectedCategory = newValue as String;
-                    });
-                  },
-                  decoration: const InputDecoration(
-                    labelText: 'Sub Category',
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-                const SizedBox(height: 16),
+                  const SizedBox(height: 16),
+                ],
                 TextFormField(
                   controller: _remarkController,
                   decoration: const InputDecoration(
@@ -249,10 +242,46 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                   maxLines: 2,
                 ),
                 const SizedBox(height: 8),
+
+                if(_isLoan)...[
+                  Row(
+                    children: [
+                      const Text('Loan Type:'),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Row(
+                          children: [
+                            Radio<bool>(
+                              value: true,
+                              groupValue: _isBorrow,
+                              onChanged: (value) {
+                                setState(() {
+                                  _isBorrow = value!;
+                                });
+                              },
+                            ),
+                            const Text('Borrow'),
+                            Radio<bool>(
+                              value: false,
+                              groupValue: _isBorrow,
+                              onChanged: (value) {
+                                setState(() {
+                                  _isBorrow = value!;
+                                });
+                              },
+                            ),
+                            const Text('Lent'),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                ],
                 Row(
                   children: [
                     const Text('Payment Mode:'),
-                    const SizedBox(width: 16),
+                    const SizedBox(width: 10),
                     Expanded(
                       child: Row(
                         children: [
@@ -310,6 +339,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                 ],
               ),
               const Spacer(),
+              const SizedBox(height: 16),
               ElevatedButton(
                 onPressed: _submitData,
                 style: ElevatedButton.styleFrom(
@@ -323,5 +353,15 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
         ),
       ),
     );
+  }
+
+  @override
+  void dispose() {
+    _titleController.dispose();
+    _amountController.dispose();
+    _personNameController.dispose();
+    _emailController.dispose();
+    _remarkController.dispose();
+    super.dispose();
   }
 }

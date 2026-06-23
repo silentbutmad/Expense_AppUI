@@ -1,4 +1,4 @@
-enum TransactionType { received, paid }
+enum TransactionType { received, paid,loan }
 enum ContextType { personal, business }
 enum TransactionCategory { income, expense, loan }
 
@@ -18,6 +18,8 @@ class Expense {
   final String? remark;
   final PaymentMode? paymentMode;
   final List<ExpenseItem> items;
+  final String? email;
+  final bool? isBorrow;
 
   Expense({
     required this.id,
@@ -35,6 +37,8 @@ class Expense {
     this.remark,
     this.paymentMode,
     this.items = const [],
+    this.email,
+    this.isBorrow,
   });
 
   bool get isBusinessExpense => contextType == ContextType.business;
