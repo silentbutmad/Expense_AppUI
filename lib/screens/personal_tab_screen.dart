@@ -180,8 +180,7 @@ class _PersonalTabContentState extends State<PersonalTabContent> {
 
           return RefreshIndicator(
             onRefresh: _handleRefresh,
-            child: SingleChildScrollView(
-              physics: const AlwaysScrollableScrollPhysics(),
+            child:Padding(
               padding: const EdgeInsets.all(12),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -202,7 +201,7 @@ class _PersonalTabContentState extends State<PersonalTabContent> {
                   _buildCompactFilterChips(theme),
                   const SizedBox(height: 12),
 
-                  // TRANSACTIONS LIST
+                  // TRANSACTIONS LIST TITLE
                   Text(
                     _selectedPersonName == null
                         ? 'All Transactions'
@@ -214,50 +213,55 @@ class _PersonalTabContentState extends State<PersonalTabContent> {
                   ),
                   const SizedBox(height: 8),
 
-                  if (provider.isLoadingTransactions)
-                    const Center(
-                      child: Padding(
-                        padding: EdgeInsets.all(20.0),
-                        child: CircularProgressIndicator(),
-                      ),
-                    )
-                  else if (filteredTransactions.isEmpty)
-                    _buildCompactEmptyState(theme)
-                  else
-                    ...groupedTransactions.entries.map((entry) {
-                      return Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 6.0),
-                            child: Text(
-                              entry.key,
-                              style: theme.textTheme.labelLarge?.copyWith(
-                                fontWeight: FontWeight.bold,
-                                color: colorScheme.primary,
-                              ),
-                            ),
-                          ),
-                          ...entry.value.map((tx) => _CompactTransactionCard(
-                            transaction: tx,
-                            onTap: () {
-                              context.push('/transaction-detail', extra: tx);
-                            },
-                            onNameTap: () {
-                              final name = tx['name'] as String?;
-                              if (name != null && name.isNotEmpty) {
-                                setState(() {
-                                  _selectedPersonName = name;
-                                });
-                              }
-                            },
-                          )),
-                          const SizedBox(height: 4),
-                        ],
-                      );
-                    }).toList(),
+                  SizedBox(
+                    height: MediaQuery.of(context).size.height
+      - kToolbarHeight
+      - kBottomNavigationBarHeight
+      - 300, // adjust according to your fixed widgets above
+  child: ListView.builder(
+    padding: const EdgeInsets.only(bottom: 16),
+    itemCount: groupedTransactions.length,
+    itemBuilder: (context, index) {
+                                  final entry = groupedTransactions.entries.elementAt(index);
 
-                  // Bottom padding for scroll
+                                  return Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Padding(
+                                        padding: const EdgeInsets.symmetric(vertical: 6),
+                                        child: Text(
+                                          entry.key,
+                                          style: theme.textTheme.labelLarge?.copyWith(
+                                            fontWeight: FontWeight.bold,
+                                            color: colorScheme.primary,
+                                          ),
+                                        ),
+                                      ),
+
+                                      ...entry.value.map(
+                                        (tx) => _CompactTransactionCard(
+                                          transaction: tx,
+                                          onTap: () {
+                                            context.push('/transaction-detail', extra: tx);
+                                          },
+                                          onNameTap: () {
+                                            final name = tx['name'] as String?;
+                                            if (name != null && name.isNotEmpty) {
+                                              setState(() {
+                                                _selectedPersonName = name;
+                                              });
+                                            }
+                                          },
+                                        ),
+                                      ),
+
+                                      const SizedBox(height: 8),
+                                    ],
+                                  );
+                                },
+                              ),
+                  ),
+                 
                   const SizedBox(height: 16),
                 ],
               ),
@@ -738,7 +742,7 @@ class _CompactTransactionCard extends StatelessWidget {
                             style: theme.textTheme.bodySmall?.copyWith(
                               color: Colors.grey,
                               fontSize: 10,
-                            ),
+                          ),
                           ),
                         if (date != null && paymentMode.isNotEmpty)
                           Text(
