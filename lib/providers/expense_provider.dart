@@ -41,19 +41,35 @@ class ExpenseProvider with ChangeNotifier {
 
     try {
       final response = await _apiService.getSummary();
+      
+      // 🔍 DEBUG: Print raw response from backend
+      debugPrint('===== BACKEND SUMMARY RESPONSE =====');
+      debugPrint('Raw response: $response');
+      debugPrint('Response type: ${response.runtimeType}');
+      if (response is Map) {
+        debugPrint('Response keys: ${response.keys.toList()}');
+        debugPrint('Response values: $response');
+      }
+      debugPrint('=====================================');
+      
       // Support both response formats:
       // { total_income, total_expense, total_loan, net_balance }
       // { success: true, data: { total_income, ... } }
       if (response is Map<String, dynamic> && response.containsKey('data')) {
         _summary = response['data'] as Map<String, dynamic>?;
+        debugPrint('Extracted summary from data field: $_summary');
       } else {
         _summary = response as Map<String, dynamic>?;
+        debugPrint('Using response directly as summary: $_summary');
       }
+      
+      debugPrint('Final summary stored: $_summary');
       _isLoadingSummary = false;
       notifyListeners();
     } catch (e) {
       _isLoadingSummary = false;
       _errorMessage = e.toString();
+      debugPrint('Error fetching summary: $e');
       notifyListeners();
     }
   }
