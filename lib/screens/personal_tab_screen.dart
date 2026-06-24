@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
-import 'package:myapp/models/expense_model.dart';
 import 'package:myapp/providers/expense_provider.dart';
 import 'package:provider/provider.dart';
 
@@ -99,7 +98,7 @@ class _PersonalTabContentState extends State<PersonalTabContent> {
         filtered = filtered.where((tx) => tx['payment_mode'] == 'CASH').toList();
         break;
       case 'Online':
-        filtered = filtered.where((tx) => tx['payment_mode'] == 'UPI').toList();
+        filtered = filtered.where((tx) => tx['payment_mode'] == 'ONLINE').toList();
         break;
       case 'Category':
         // Category filter would need a sub-filter, for now show all
@@ -187,23 +186,23 @@ class _PersonalTabContentState extends State<PersonalTabContent> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // 💰 COMPACT SUMMARY CARD
+                  // COMPACT SUMMARY CARD
                   _buildCompactSummaryCard(provider, colorScheme),
                   const SizedBox(height: 12),
 
-                  // 🔘 ACTION BUTTONS
+                  // ACTION BUTTONS
                   _buildCompactActionButtons(theme),
                   const SizedBox(height: 12),
 
-                  // 🔍 SEARCH BAR
+                  // SEARCH BAR
                   _buildCompactSearchBar(theme),
                   const SizedBox(height: 8),
 
-                  // 📊 FILTER CHIPS
+                  // FILTER CHIPS
                   _buildCompactFilterChips(theme),
                   const SizedBox(height: 12),
 
-                  // 📋 TRANSACTIONS LIST
+                  // TRANSACTIONS LIST
                   Text(
                     _selectedPersonName == null
                         ? 'All Transactions'
@@ -355,8 +354,8 @@ class _PersonalTabContentState extends State<PersonalTabContent> {
             onPressed: () {
               context.push('/add-expense', extra: {
                 'isBusiness': false,
-                'transactionType': TransactionType.received,
-                'transactionCategory': TransactionCategory.income,
+                'transactionType': 'RECEIVED',
+                'transactionCategory': 'INCOME',
               });
             },
           ),
@@ -370,8 +369,8 @@ class _PersonalTabContentState extends State<PersonalTabContent> {
             onPressed: () {
               context.push('/add-expense', extra: {
                 'isBusiness': false,
-                'transactionType': TransactionType.paid,
-                'transactionCategory': TransactionCategory.expense,
+                'transactionType': 'PAID',
+                'transactionCategory': 'EXPENSE',
               });
             },
           ),
@@ -385,7 +384,7 @@ class _PersonalTabContentState extends State<PersonalTabContent> {
             onPressed: () {
               context.push('/add-expense', extra: {
                 'isBusiness': false,
-                'transactionCategory': TransactionCategory.loan,
+                'transactionCategory': 'LOAN',
               });
             },
           ),
@@ -491,8 +490,8 @@ class _PersonalTabContentState extends State<PersonalTabContent> {
               onPressed: () {
                 context.push('/add-expense', extra: {
                   'isBusiness': false,
-                  'transactionType': TransactionType.paid,
-                  'transactionCategory': TransactionCategory.expense,
+                  'transactionType': 'PAID',
+                  'transactionCategory': 'EXPENSE',
                 });
               },
               icon: const Icon(Icons.add, size: 16),
@@ -551,25 +550,25 @@ class _CompactActionButton extends StatelessWidget {
       onTap: onPressed,
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
-      decoration: BoxDecoration(
-        color: color,
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(icon, color: Colors.white, size: 16),
-          const SizedBox(width: 4),
-          Text(
-            label,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
+        decoration: BoxDecoration(
+          color: color,
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, color: Colors.white, size: 16),
+            const SizedBox(width: 4),
+            Text(
+              label,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+              ),
             ),
-          ),
-        ],
-      ),
+          ],
+        ),
       ),
     );
   }

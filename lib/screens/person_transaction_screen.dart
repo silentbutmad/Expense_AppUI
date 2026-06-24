@@ -99,8 +99,8 @@ class _PersonTransactionScreenState extends State<PersonTransactionScreen> {
 
           for (final tx in transactions) {
             final amount = (tx['amount'] as num?)?.toDouble() ?? 0.0;
-            final transactionType = tx['transactionType'] as String?;
-            final loanType = tx['loanType'] as String?;
+            final transactionType = tx['transaction_type'] as String?;
+            final loanType = tx['loan_type'] as String?;
 
             totalAmount += amount;
 
@@ -268,27 +268,34 @@ class _TransactionCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final amount = (transaction['amount'] as num?)?.toDouble() ?? 0.0;
-    final transactionType = transaction['transactionType'] as String? ?? '';
+    final transactionType = transaction['transaction_type'] as String? ?? '';
     final category = transaction['category'] as String? ?? '';
-    final date = transaction['date'] != null
-        ? DateTime.tryParse(transaction['date'].toString())
-        : null;
-    final paymentMode = transaction['paymentMode'] as String? ?? '';
+    final dateStr = transaction['transaction_date'] as String? ?? '';
+    final paymentMode = transaction['payment_mode'] as String? ?? '';
+
+    DateTime? date;
+    if (dateStr.isNotEmpty) {
+      try {
+        date = DateTime.parse(dateStr);
+      } catch (e) {
+        // Keep date as null
+      }
+    }
 
     Color typeColor;
     IconData typeIcon;
 
     switch (transactionType.toUpperCase()) {
-      case 'RECEIVED':
+      case 'INCOME':
         typeColor = Colors.green;
         typeIcon = Icons.arrow_downward;
         break;
-      case 'PAID':
+      case 'EXPENSE':
         typeColor = Colors.red;
         typeIcon = Icons.arrow_upward;
         break;
       case 'LOAN':
-        final loanType = transaction['loanType'] as String? ?? '';
+        final loanType = transaction['loan_type'] as String? ?? '';
         if (loanType == 'LENT') {
           typeColor = Colors.blue;
           typeIcon = Icons.account_balance_wallet;

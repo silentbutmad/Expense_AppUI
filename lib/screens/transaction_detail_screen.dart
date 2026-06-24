@@ -1,11 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
-import 'package:myapp/models/expense_model.dart';
 import 'package:myapp/providers/expense_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 class TransactionDetailScreen extends StatefulWidget {
   final Map<String, dynamic> transaction;
@@ -306,27 +304,27 @@ ${remark.isNotEmpty ? 'Remark : $remark' : ''}
     });
   }
 
-  TransactionType? _parseTransactionType(String? type) {
+  String? _parseTransactionType(String? type) {
     switch (type?.toUpperCase()) {
       case 'RECEIVED':
-        return TransactionType.received;
+        return 'RECEIVED';
       case 'PAID':
-        return TransactionType.paid;
+        return 'PAID';
       case 'LOAN':
-        return TransactionType.loan;
+        return 'LOAN';
       default:
         return null;
     }
   }
 
-  TransactionCategory? _parseTransactionCategory(String? category) {
+  String? _parseTransactionCategory(String? category) {
     switch (category?.toUpperCase()) {
       case 'INCOME':
-        return TransactionCategory.income;
+        return 'INCOME';
       case 'EXPENSE':
-        return TransactionCategory.expense;
+        return 'EXPENSE';
       case 'LOAN':
-        return TransactionCategory.loan;
+        return 'LOAN';
       default:
         return null;
     }

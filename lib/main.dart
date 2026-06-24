@@ -2,7 +2,6 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:myapp/firebase_options.dart';
-import 'package:myapp/models/expense_model.dart';
 import 'package:myapp/providers/expense_provider.dart';
 import 'package:myapp/providers/theme_provider.dart';
 import 'package:myapp/screens/add_expense_screen.dart';
@@ -80,9 +79,9 @@ class _MyAppState extends State<MyApp> {
             final extra = state.extra;
             if (extra is Map) {
               final isBusiness = extra['isBusiness'] as bool? ?? false;
-              final transactionType = extra['transactionType'] as TransactionType?;
+              final transactionType = extra['transactionType'] as String?;
               final personName = extra['personName'] as String?;
-              final transactionCategory = extra['transactionCategory'] as TransactionCategory?;
+              final transactionCategory = extra['transactionCategory'] as String?;
               return AddExpenseScreen(
                 isBusiness: isBusiness,
                 transactionType: transactionType,

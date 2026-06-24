@@ -1,7 +1,6 @@
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:myapp/models/expense_model.dart';
 import 'package:myapp/providers/expense_provider.dart';
 import 'package:myapp/widgets/expense_list.dart';
 import 'package:provider/provider.dart';
@@ -22,19 +21,37 @@ class ReportsScreen extends StatefulWidget {
 class _ReportsScreenState extends State<ReportsScreen> {
   DateRange _selectedRange = DateRange.thisMonth;
 
-  List<Expense> _getFilteredExpenses(List<Expense> allExpenses) {
+  List<Map<String, dynamic>> _getFilteredTransactions(List<Map<String, dynamic>> allTransactions) {
     final now = DateTime.now();
     switch (_selectedRange) {
       case DateRange.thisMonth:
-        return allExpenses
-            .where((e) => e.date.month == now.month && e.date.year == now.year)
+        return allTransactions
+            .where((tx) {
+              final dateStr = tx['transaction_date'] as String? ?? '';
+              if (dateStr.isEmpty) return false;
+              try {
+                final date = DateTime.parse(dateStr);
+                return date.month == now.month && date.year == now.year;
+              } catch (e) {
+                return false;
+              }
+            })
             .toList();
       case DateRange.last30Days:
-        return allExpenses
-            .where((e) => e.date.isAfter(now.subtract(const Duration(days: 30))))
+        return allTransactions
+            .where((tx) {
+              final dateStr = tx['transaction_date'] as String? ?? '';
+              if (dateStr.isEmpty) return false;
+              try {
+                final date = DateTime.parse(dateStr);
+                return date.isAfter(now.subtract(const Duration(days: 30)));
+              } catch (e) {
+                return false;
+              }
+            })
             .toList();
       case DateRange.allTime:
-        return allExpenses;
+        return allTransactions;
     }
   }
 
@@ -42,21 +59,29 @@ class _ReportsScreenState extends State<ReportsScreen> {
   Widget build(BuildContext context) {
     final now = DateTime.now();
     final expenseProvider = Provider.of<ExpenseProvider>(context);
-    final filteredExpenses = _getFilteredExpenses(expenseProvider.expenses);
+    final filteredTransactions = _getFilteredTransactions(expenseProvider.personalTransactions);
 
-    filteredExpenses.sort((a, b) => a.date.compareTo(b.date));
+    // Sort by date descending
+    filteredTransactions.sort((a, b) {
+      final dateA = DateTime.tryParse(a['transaction_date'] as String? ?? '') ?? DateTime.now();
+      final dateB = DateTime.tryParse(b['transaction_date'] as String? ?? '') ?? DateTime.now();
+      return dateB.compareTo(dateA);
+    });
 
-    final filteredTotalExpenses =
-        filteredExpenses.fold<double>(0.0, (sum, item) => sum + item.amount);
-
-    final filteredTotalIncome = expenseProvider.getFilteredIncome(
-      _selectedRange == DateRange.thisMonth
-          ? DateTime(now.year, now.month, 1)
-          : _selectedRange == DateRange.last30Days
-              ? now.subtract(const Duration(days: 30))
-              : DateTime(2000),
-      now,
-    );
+    // Calculate totals from filtered transactions
+    double filteredTotalExpenses = 0.0;
+    double filteredTotalIncome = 0.0;
+    
+    for (final tx in filteredTransactions) {
+      final amount = (tx['amount'] as num?)?.toDouble() ?? 0.0;
+      final type = tx['transaction_type'] as String? ?? '';
+      
+      if (type == 'INCOME') {
+        filteredTotalIncome += amount;
+      } else if (type == 'EXPENSE') {
+        filteredTotalExpenses += amount;
+      }
+    }
 
     return Scaffold(
       appBar: AppBar(
@@ -106,12 +131,12 @@ class _ReportsScreenState extends State<ReportsScreen> {
               ],
             ),
           ),
-          if (filteredExpenses.isNotEmpty)
+          if (filteredTransactions.isNotEmpty)
             SizedBox(
               height: 250,
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16.0).copyWith(bottom: 20),
-                child: _buildBarChart(context, filteredExpenses),
+                child: _buildBarChart(context, filteredTransactions),
               ),
             ),
           const Padding(
@@ -120,9 +145,9 @@ class _ReportsScreenState extends State<ReportsScreen> {
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
           ),
           Expanded(
-            child: filteredExpenses.isEmpty
+            child: filteredTransactions.isEmpty
                 ? const Center(child: Text('No transactions for this period.'))
-                : ExpenseList(expenses: filteredExpenses),
+                : ExpenseList(transactions: filteredTransactions),
           ),
         ],
       ),
@@ -152,9 +177,9 @@ class _ReportsScreenState extends State<ReportsScreen> {
     );
   }
 
-  Widget _buildBarChart(BuildContext context, List<Expense> expenses) {
+  Widget _buildBarChart(BuildContext context, List<Map<String, dynamic>> transactions) {
     final DateFormat formatter = DateFormat('MMM d, yy');
-    final sortedEntries = _getSortedDailyTotals(expenses, formatter);
+    final sortedEntries = _getSortedDailyTotals(transactions, formatter);
 
     final titlesData = FlTitlesData(
       show: true,
@@ -167,7 +192,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
             if (index >= 0 && index < sortedEntries.length) {
               return Padding(
                 padding: const EdgeInsets.only(top: 4.0),
-                  child: Transform.rotate(
+                child: Transform.rotate(
                   angle: -0.785,
                   child: Text(sortedEntries[index].key, style: const TextStyle(fontSize: 9)),
                 ),
@@ -190,7 +215,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
             : sortedEntries.map((e) => e.value).reduce((a, b) => a > b ? a : b) *
                 1.2,
         barTouchData: BarTouchData(enabled: false),
-        titlesData: titlesData, // Pass the pre-built titlesData
+        titlesData: titlesData,
         gridData: const FlGridData(show: false),
         borderData: FlBorderData(show: false),
         barGroups: sortedEntries.asMap().entries.map((entry) {
@@ -216,11 +241,19 @@ class _ReportsScreenState extends State<ReportsScreen> {
   }
 
   List<MapEntry<String, double>> _getSortedDailyTotals(
-      List<Expense> expenses, DateFormat formatter) {
+      List<Map<String, dynamic>> transactions, DateFormat formatter) {
     Map<String, double> dailyTotals = {};
-    for (var expense in expenses) {
-      final day = formatter.format(expense.date);
-      dailyTotals[day] = (dailyTotals[day] ?? 0) + expense.amount;
+    for (var tx in transactions) {
+      final dateStr = tx['transaction_date'] as String? ?? '';
+      if (dateStr.isEmpty) continue;
+      try {
+        final date = DateTime.parse(dateStr);
+        final day = formatter.format(date);
+        final amount = (tx['amount'] as num?)?.toDouble() ?? 0.0;
+        dailyTotals[day] = (dailyTotals[day] ?? 0) + amount;
+      } catch (e) {
+        // Skip invalid dates
+      }
     }
 
     final sortedEntries = dailyTotals.entries.toList()

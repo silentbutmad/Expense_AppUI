@@ -13,11 +13,27 @@ class BudgetIndicator extends StatelessWidget {
 
     return Consumer<ExpenseProvider>(
       builder: (context, expenseProvider, child) {
-        // Calculate total expenses for the current month
+        // Calculate total expenses for the current month from transactions
         final now = DateTime.now();
-        final totalExpenses = expenseProvider.expenses
-            .where((e) => e.date.month == now.month && e.date.year == now.year)
-            .fold<double>(0.0, (sum, item) => sum + item.amount);
+        double totalExpenses = 0.0;
+        
+        for (final tx in expenseProvider.personalTransactions) {
+          final dateStr = tx['transaction_date'] as String? ?? '';
+          if (dateStr.isEmpty) continue;
+          try {
+            final date = DateTime.parse(dateStr);
+            if (date.month == now.month && date.year == now.year) {
+              final amount = (tx['amount'] as num?)?.toDouble() ?? 0.0;
+              final type = tx['transaction_type'] as String? ?? '';
+              // Only count expenses (not income or loans)
+              if (type == 'EXPENSE') {
+                totalExpenses += amount;
+              }
+            }
+          } catch (e) {
+            // Skip invalid dates
+          }
+        }
 
         // Calculate the progress, ensuring it's between 0.0 and 1.0
         final progress = (totalExpenses / monthlyBudget).clamp(0.0, 1.0);

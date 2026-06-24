@@ -10,9 +10,18 @@ class ExpenseDetailScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final expenseProvider = Provider.of<ExpenseProvider>(context);
-    final recentExpenses = expenseProvider.expenses.where((expense) {
-      return expense.date
-          .isAfter(DateTime.now().subtract(const Duration(days: 7)));
+    final now = DateTime.now();
+    
+    // Filter transactions from last 7 days
+    final recentTransactions = expenseProvider.personalTransactions.where((tx) {
+      final dateStr = tx['transaction_date'] as String? ?? '';
+      if (dateStr.isEmpty) return false;
+      try {
+        final date = DateTime.parse(dateStr);
+        return date.isAfter(now.subtract(const Duration(days: 7)));
+      } catch (e) {
+        return false;
+      }
     }).toList();
 
     return Scaffold(
@@ -22,9 +31,9 @@ class ExpenseDetailScreen extends StatelessWidget {
       body: SingleChildScrollView(
         child: Column(
           children: [
-            ExpenseChart(expenses: recentExpenses),
+            ExpenseChart(transactions: recentTransactions),
             const SizedBox(height: 20),
-            ExpenseList(expenses: expenseProvider.expenses),
+            ExpenseList(transactions: expenseProvider.personalTransactions),
           ],
         ),
       ),

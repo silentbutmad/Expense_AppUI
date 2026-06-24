@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:myapp/models/expense_model.dart';
 import 'package:myapp/providers/expense_provider.dart';
 import 'package:myapp/screens/expense_detail_screen.dart';
 import 'package:myapp/widgets/expense_chart.dart';
 import 'package:provider/provider.dart';
-import 'package:uuid/uuid.dart';
 import 'package:intl/intl.dart';
 
 class ExpenseScreen extends StatefulWidget {
@@ -17,156 +15,11 @@ class ExpenseScreen extends StatefulWidget {
 class _ExpenseScreenState extends State<ExpenseScreen> {
   bool _showChart = false;
 
-  void _addExpense(Expense expense) {
-    Provider.of<ExpenseProvider>(context, listen: false).addExpense(expense);
-  }
-
-  void _showAddExpenseDialog() {
-    final formKey = GlobalKey<FormState>();
-    final titleController = TextEditingController();
-    final amountController = TextEditingController();
-    String category = 'Food'; // Default category
-    DateTime? selectedDate = DateTime.now();
-
-    showDialog(
-      context: context,
-      builder: (ctx) {
-        return StatefulBuilder(
-          builder: (BuildContext context, StateSetter setDialogState) {
-            return AlertDialog(
-              title: const Text('Add Expense'),
-              content: Form(
-                key: formKey,
-                child: SingleChildScrollView(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      TextFormField(
-                        controller: titleController,
-                        decoration: const InputDecoration(labelText: 'Title'),
-                        validator: (value) {
-                          if (value == null || value.trim().isEmpty) {
-                            return 'Please enter a title.';
-                          }
-                          return null;
-                        },
-                      ),
-                      TextFormField(
-                        controller: amountController,
-                        decoration: const InputDecoration(labelText: 'Amount'),
-                        keyboardType: const TextInputType.numberWithOptions(
-                          decimal: true,
-                        ),
-                        validator: (value) {
-                          if (value == null ||
-                              value.isEmpty ||
-                              double.tryParse(value) == null ||
-                              double.parse(value) <= 0) {
-                            return 'Please enter a valid amount.';
-                          }
-                          return null;
-                        },
-                      ),
-                      DropdownButtonFormField<String>(
-                        initialValue: category,
-                        items: const [
-                          DropdownMenuItem(value: 'Food', child: Text('Food')),
-                          DropdownMenuItem(
-                              value: 'Transport', child: Text('Transport')),
-                          DropdownMenuItem(
-                              value: 'Leisure', child: Text('Leisure')),
-                          DropdownMenuItem(value: 'Work', child: Text('Work')),
-                          DropdownMenuItem(
-                              value: 'Other', child: Text('Other')),
-                        ],
-                        onChanged: (value) {
-                          if (value != null) {
-                            setDialogState(() {
-                              category = value;
-                            });
-                          }
-                        },
-                        decoration: const InputDecoration(
-                          labelText: 'Category',
-                        ),
-                      ),
-                      const SizedBox(height: 20),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              'Date: ${DateFormat.yMd().format(selectedDate!)}',
-                            ),
-                          ),
-                          IconButton(
-                            icon: const Icon(Icons.calendar_month),
-                            onPressed: () async {
-                              final pickedDate = await showDatePicker(
-                                context: context,
-                                initialDate: selectedDate!,
-                                firstDate: DateTime(2020),
-                                lastDate: DateTime.now(),
-                              );
-                              if (pickedDate != null) {
-                                setDialogState(() {
-                                  selectedDate = pickedDate;
-                                });
-                              }
-                            },
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              actions: [
-                TextButton(
-                  child: const Text('Cancel'),
-                  onPressed: () => Navigator.of(ctx).pop(),
-                ),
-                ElevatedButton(
-                  child: const Text('Add'),
-                  onPressed: () {
-                    if (formKey.currentState!.validate()) {
-                      final newExpense = Expense(
-                          id: const Uuid().v4(),
-                          amount: double.parse(amountController.text),
-                          date: selectedDate!,
-                          category: category);
-                      _addExpense(newExpense);
-                      Navigator.of(ctx).pop();
-                    }
-                  },
-                ),
-              ],
-            );
-          },
-        );
-      },
-    );
-  }
-
-  IconData _getIconForCategory(String category) {
-    switch (category) {
-      case 'Food':
-        return Icons.fastfood;
-      case 'Transport':
-        return Icons.directions_bus;
-      case 'Leisure':
-        return Icons.sports_esports;
-      case 'Work':
-        return Icons.work;
-      default:
-        return Icons.more_horiz;
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final expenseProvider = Provider.of<ExpenseProvider>(context);
-    final expenses = expenseProvider.expenses;
+    final transactions = expenseProvider.personalTransactions;
 
     return Scaffold(
       appBar: AppBar(
@@ -200,11 +53,11 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
           AnimatedSwitcher(
             duration: const Duration(milliseconds: 300),
             child: _showChart
-                ? ExpenseChart(expenses: expenses)
+                ? ExpenseChart(transactions: transactions)
                 : const SizedBox.shrink(),
           ),
           Expanded(
-            child: expenses.isEmpty
+            child: transactions.isEmpty
                 ? const Center(
                     child: Text(
                       'No expenses yet. Add one!',
@@ -212,9 +65,38 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
                     ),
                   )
                 : ListView.builder(
-                    itemCount: expenses.length,
+                    itemCount: transactions.length,
                     itemBuilder: (ctx, index) {
-                      final expense = expenses[index];
+                      final tx = transactions[index];
+                      final amount = (tx['amount'] as num?)?.toDouble() ?? 0.0;
+                      final category = tx['category'] as String? ?? '';
+                      final dateStr = tx['transaction_date'] as String? ?? '';
+                      final transactionType = tx['transaction_type'] as String? ?? '';
+
+                      DateTime? date;
+                      if (dateStr.isNotEmpty) {
+                        try {
+                          date = DateTime.parse(dateStr);
+                        } catch (e) {
+                          // Keep date as null
+                        }
+                      }
+
+                      Color typeColor;
+                      switch (transactionType.toUpperCase()) {
+                        case 'INCOME':
+                          typeColor = Colors.green;
+                          break;
+                        case 'EXPENSE':
+                          typeColor = Colors.red;
+                          break;
+                        case 'LOAN':
+                          typeColor = Colors.orange;
+                          break;
+                        default:
+                          typeColor = Colors.grey;
+                      }
+
                       return Card(
                         elevation: 2,
                         margin: const EdgeInsets.symmetric(
@@ -229,20 +111,20 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
                             backgroundColor:
                                 theme.colorScheme.primary.withAlpha(25),
                             child: Icon(
-                              _getIconForCategory(expense.category),
+                              _getIconForCategory(category),
                               color: theme.colorScheme.primary,
                             ),
                           ),
                           subtitle: Text(
-                            DateFormat.yMMMd().format(expense.date),
+                            date != null ? DateFormat.yMMMd().format(date) : 'No date',
                             style: TextStyle(color: Colors.grey[600]),
                           ),
                           trailing: Text(
-                            '\$${expense.amount.toStringAsFixed(2)}',
+                            '\u20b9${amount.toStringAsFixed(2)}',
                             style: TextStyle(
                               fontWeight: FontWeight.bold,
                               fontSize: 16,
-                              color: theme.colorScheme.primary,
+                              color: typeColor,
                             ),
                           ),
                         ),
@@ -253,11 +135,29 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
         ],
       ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: _showAddExpenseDialog,
+        onPressed: () {
+          // Navigate to add expense screen
+          // This will be implemented with proper routing
+        },
         label: const Text('Add Expense'),
         icon: const Icon(Icons.add),
         backgroundColor: theme.colorScheme.primary,
       ),
     );
+  }
+
+  IconData _getIconForCategory(String category) {
+    switch (category.toLowerCase()) {
+      case 'food':
+        return Icons.fastfood;
+      case 'transport':
+        return Icons.directions_bus;
+      case 'leisure':
+        return Icons.sports_esports;
+      case 'work':
+        return Icons.work;
+      default:
+        return Icons.more_horiz;
+    }
   }
 }

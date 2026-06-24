@@ -1,8 +1,6 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:myapp/services/auth_service.dart';
-import 'package:provider/provider.dart';
 
 class UpdatePasswordScreen extends StatefulWidget {
   const UpdatePasswordScreen({super.key});
@@ -41,8 +39,7 @@ class _UpdatePasswordScreenState extends State<UpdatePasswordScreen> {
     });
 
     try {
-      final authService = Provider.of<AuthService>(context, listen: false);
-      final user = authService.currentUser;
+      final user = FirebaseAuth.instance.currentUser;
       final currentPassword = _currentPasswordController.text;
       final newPassword = _newPasswordController.text;
 

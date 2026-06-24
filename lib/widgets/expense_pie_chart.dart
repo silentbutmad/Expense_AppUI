@@ -1,23 +1,23 @@
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
-import 'package:myapp/models/expense_model.dart';
 import 'package:myapp/theme/app_tokens.dart';
 
 class ExpensePieChart extends StatelessWidget {
-  final List<Expense> expenses;
+  final List<Map<String, dynamic>> transactions;
 
-  const ExpensePieChart({super.key, required this.expenses});
+  const ExpensePieChart({super.key, required this.transactions});
 
   @override
   Widget build(BuildContext context) {
-    // 1. Calculate total expenses for each category
+    // Calculate total expenses for each category
     final Map<String, double> dataMap = {};
-    for (var expense in expenses) {
-      dataMap[expense.category] =
-          (dataMap[expense.category] ?? 0) + expense.amount;
+    for (var tx in transactions) {
+      final category = tx['category'] as String? ?? 'Other';
+      final amount = (tx['amount'] as num?)?.toDouble() ?? 0.0;
+      dataMap[category] = (dataMap[category] ?? 0) + amount;
     }
 
-    // 2. Define a list of colors for the chart sections
+    // Define a list of colors for the chart sections
     final List<Color> colorList = [
       Colors.blue,
       Colors.green,
@@ -29,11 +29,14 @@ class ExpensePieChart extends StatelessWidget {
       Colors.pink,
     ];
 
-    // 3. Create pie chart sections from the data map
+    // Create pie chart sections from the data map
     final List<PieChartSectionData> sections = [];
-    final totalExpenses = expenses.fold<double>(0.0, (sum, item) => sum + item.amount);
+    final totalExpenses = transactions.fold<double>(0.0, (sum, tx) {
+      final amount = (tx['amount'] as num?)?.toDouble() ?? 0.0;
+      return sum + amount;
+    });
 
-    if (totalExpenses == 0) {
+    if (totalExpenses == 0 || dataMap.isEmpty) {
       // If there are no expenses, show a single grey section
       sections.add(
         PieChartSectionData(
@@ -69,7 +72,7 @@ class ExpensePieChart extends StatelessWidget {
       }
     }
 
-    // 4. Build the UI: Pie Chart + Legend
+    // Build the UI: Pie Chart + Legend
     return Column(
       children: [
         SizedBox(

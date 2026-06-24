@@ -5,7 +5,6 @@ import 'package:myapp/screens/personal_tab_screen.dart' show PersonalTabContent;
 import 'package:myapp/widgets/expense_list.dart';
 import 'package:myapp/widgets/expense_pie_chart.dart';
 import 'package:provider/provider.dart';
-import 'package:myapp/models/expense_model.dart';
 
 enum ExpenseMode { personal, business }
 
@@ -48,9 +47,12 @@ class _HomeScreenState extends State<HomeScreen> {
     final totalExpenses = expenseProvider.totalExpense;
     final totalBalance = expenseProvider.totalBalance;
 
-    // Filter local expenses for display only
-    final filteredExpenses = expenseProvider.expenses
-        .where((e) => e.isBusinessExpense == isBusiness)
+    // Filter personal transactions for display only
+    final filteredTransactions = expenseProvider.personalTransactions
+        .where((tx) {
+          final isBusinessTx = tx['isBusiness'] == true;
+          return isBusiness == isBusinessTx;
+        })
         .toList();
 
     final textTheme = Theme.of(context).textTheme;
@@ -71,7 +73,7 @@ class _HomeScreenState extends State<HomeScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // 🔥 TOGGLE BUTTON
+            // TOGGLE BUTTON
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
@@ -96,7 +98,7 @@ class _HomeScreenState extends State<HomeScreen> {
             const SizedBox(height: 20),
 
             if (isBusiness) ...[
-              // 💰 BUSINESS BALANCE CARD
+              // BUSINESS BALANCE CARD
               Card(
                 elevation: 8,
                 shape: RoundedRectangleBorder(
@@ -162,7 +164,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
               const SizedBox(height: 25),
 
-              // ⚡ QUICK ACTIONS
+              // QUICK ACTIONS
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceAround,
                 children: [
@@ -178,8 +180,8 @@ class _HomeScreenState extends State<HomeScreen> {
                     label: 'Add Revenue',
                     onPressed: () => context.push('/add-expense', extra: {
                       'isBusiness': true,
-                      'transactionType': TransactionType.received,
-                      'transactionCategory': TransactionCategory.income,
+                      'transactionType': 'RECEIVED',
+                      'transactionCategory': 'INCOME',
                     }),
                   ),
                 ],
@@ -187,7 +189,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
               const SizedBox(height: 25),
 
-              // 📊 PIE CHART
+              // PIE CHART
               Text(
                 'Business Expenses',
                 style: textTheme.headlineSmall,
@@ -196,24 +198,24 @@ class _HomeScreenState extends State<HomeScreen> {
 
               SizedBox(
                 height: 200,
-                child: filteredExpenses.isEmpty
+                child: filteredTransactions.isEmpty
                     ? const Center(child: Text('No expenses yet.'))
-                    : ExpensePieChart(expenses: filteredExpenses),
+                    : ExpensePieChart(transactions: filteredTransactions),
               ),
 
               const SizedBox(height: 25),
 
-              // 📋 RECENT TRANSACTIONS
+              // RECENT TRANSACTIONS
               Text(
                 'Recent Transactions',
                 style: textTheme.headlineSmall,
               ),
               const SizedBox(height: 10),
 
-              filteredExpenses.isEmpty
+              filteredTransactions.isEmpty
                   ? const Center(child: Text('No recent transactions.'))
                   : ExpenseList(
-                      expenses: filteredExpenses.take(5).toList(),
+                      transactions: filteredTransactions.take(5).toList(),
                     ),
             ] else ...[
               // Personal Tab Content
@@ -223,7 +225,7 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
       ),
 
-      // 🔻 BOTTOM NAV
+      // BOTTOM NAV
       bottomNavigationBar: BottomNavigationBar(
         items: const [
           BottomNavigationBarItem(

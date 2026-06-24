@@ -1,29 +1,29 @@
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
-import 'package:myapp/models/expense_model.dart';
 
 class ExpenseChart extends StatelessWidget {
-  final List<Expense> expenses;
+  final List<Map<String, dynamic>> transactions;
 
-  const ExpenseChart({super.key, required this.expenses});
+  const ExpenseChart({super.key, required this.transactions});
 
   @override
   Widget build(BuildContext context) {
     // Group expenses by category
     final Map<String, double> categoryTotals = {};
     double totalExpenses = 0;
-    for (var expense in expenses) {
+    for (var tx in transactions) {
+      final category = tx['category'] as String? ?? 'Other';
+      final amount = (tx['amount'] as num?)?.toDouble() ?? 0.0;
       categoryTotals.update(
-        expense.category, // Use category string for grouping
-        (value) => value + expense.amount,
-        ifAbsent: () => expense.amount,
+        category,
+        (value) => value + amount,
+        ifAbsent: () => amount,
       );
-      totalExpenses += expense.amount;
+      totalExpenses += amount;
     }
 
     final List<PieChartSectionData> sections = [];
     final List<Color> chartColors = [
-      // Use a consistent set of colors for the chart
       Colors.blue.shade400,
       Colors.red.shade400,
       Colors.green.shade400,
@@ -44,7 +44,7 @@ class ExpenseChart extends StatelessWidget {
             value: total,
             title: '${percentage.toStringAsFixed(0)}%',
             color: color,
-            radius: 80, // Increased radius for better visibility
+            radius: 80,
             titleStyle: const TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.bold,
@@ -61,7 +61,6 @@ class ExpenseChart extends StatelessWidget {
       child: Card(
         elevation: 4,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        // FIX: Use surfaceContainerHighest instead of deprecated surfaceVariant
         color: Theme.of(context).colorScheme.surfaceContainerHighest,
         child: Padding(
           padding: const EdgeInsets.all(16.0),
@@ -88,7 +87,7 @@ class ExpenseChart extends StatelessWidget {
                           pieTouchData: PieTouchData(
                             touchCallback:
                                 (FlTouchEvent event, pieTouchResponse) {
-                              // Optional: Handle touch events
+                              // Handle touch events if needed
                             },
                           ),
                         ),
@@ -102,7 +101,6 @@ class ExpenseChart extends StatelessWidget {
                   runSpacing: 8,
                   alignment: WrapAlignment.center,
                   children: categoryTotals.entries.map((entry) {
-                    // Find the color for the current category
                     final index =
                         categoryTotals.keys.toList().indexOf(entry.key);
                     final color = chartColors[index % chartColors.length];

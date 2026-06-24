@@ -15,14 +15,21 @@ class _AddIncomeScreenState extends State<AddIncomeScreen> {
   final _formKey = GlobalKey<FormState>();
   final _amountController = TextEditingController();
 
-  void _submitData() {
+  Future<void> _submitData() async {
     if (_formKey.currentState!.validate()) {
       final enteredAmount = double.tryParse(_amountController.text);
       if (enteredAmount == null || enteredAmount <= 0) {
         return;
       }
-      Provider.of<ExpenseProvider>(context, listen: false)
-          .addIncome(enteredAmount);
+      final provider = Provider.of<ExpenseProvider>(context, listen: false);
+      await provider.addPersonalTransaction({
+        "amount": enteredAmount,
+        "name": "",
+        "category": "Income",
+        "payment_mode": "CASH",
+        "transaction_type": "INCOME",
+        "transaction_date": DateTime.now().toIso8601String(),
+      });
       Navigator.of(context).pop();
     }
   }
