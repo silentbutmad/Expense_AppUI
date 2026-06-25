@@ -178,93 +178,95 @@ class _PersonalTabContentState extends State<PersonalTabContent> {
           final filteredTransactions = _getFilteredTransactions(allTransactions);
           final groupedTransactions = _groupByDate(filteredTransactions);
 
-          return RefreshIndicator(
-            onRefresh: _handleRefresh,
-            child:Padding(
-              padding: const EdgeInsets.all(12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // COMPACT SUMMARY CARD
-                  _buildCompactSummaryCard(provider, colorScheme),
-                  const SizedBox(height: 12),
+          return Padding(
+            padding: const EdgeInsets.fromLTRB(20,0, 20, 0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // COMPACT SUMMARY CARD
+                _buildCompactSummaryCard(provider, colorScheme),
+                const SizedBox(height: 12),
 
-                  // ACTION BUTTONS
-                  _buildCompactActionButtons(theme),
-                  const SizedBox(height: 12),
+                // ACTION BUTTONS
+                _buildCompactActionButtons(theme),
+                const SizedBox(height: 12),
 
-                  // SEARCH BAR
-                  _buildCompactSearchBar(theme),
-                  const SizedBox(height: 8),
+                // SEARCH BAR
+                _buildCompactSearchBar(theme),
+                const SizedBox(height: 8),
 
-                  // FILTER CHIPS
-                  _buildCompactFilterChips(theme),
-                  const SizedBox(height: 12),
+                // FILTER CHIPS
+                _buildCompactFilterChips(theme),
+                const SizedBox(height: 12),
 
-                  // TRANSACTIONS LIST TITLE
-                  Text(
-                    _selectedPersonName == null
-                        ? 'All Transactions'
-                        : 'Transactions with $_selectedPersonName',
-                    style: theme.textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: colorScheme.onSurface,
-                    ),
+                // TRANSACTIONS LIST TITLE
+                Text(
+                  _selectedPersonName == null
+                      ? 'All Transactions'
+                      : 'Transactions with $_selectedPersonName',
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: colorScheme.onSurface,
                   ),
-                  const SizedBox(height: 8),
+                ),
+                const SizedBox(height: 8),
 
-                  SizedBox(
-                    height: MediaQuery.of(context).size.height
-      - kToolbarHeight
-      - kBottomNavigationBarHeight
-      - 300, // adjust according to your fixed widgets above
-  child: ListView.builder(
-    padding: const EdgeInsets.only(bottom: 16),
-    itemCount: groupedTransactions.length,
-    itemBuilder: (context, index) {
-                                  final entry = groupedTransactions.entries.elementAt(index);
+                // EXPANDED LISTVIEW - takes remaining space
+                Expanded(
+                  child: RefreshIndicator(
+                    onRefresh: _handleRefresh,
+                    child: groupedTransactions.isEmpty
+                        ? ListView(
+                            children: [
+                              const SizedBox(height: 60),
+                              _buildCompactEmptyState(theme),
+                            ],
+                          )
+                        : ListView.builder(
+                            padding: const EdgeInsets.only(bottom: 16),
+                            itemCount: groupedTransactions.length,
+                            itemBuilder: (context, index) {
+                              final entry = groupedTransactions.entries.elementAt(index);
 
-                                  return Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Padding(
-                                        padding: const EdgeInsets.symmetric(vertical: 6),
-                                        child: Text(
-                                          entry.key,
-                                          style: theme.textTheme.labelLarge?.copyWith(
-                                            fontWeight: FontWeight.bold,
-                                            color: colorScheme.primary,
-                                          ),
-                                        ),
+                              return Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Padding(
+                                    padding: const EdgeInsets.symmetric(vertical: 20),
+                                    child: Text(
+                                      entry.key,
+                                      style: theme.textTheme.labelLarge?.copyWith(
+                                        fontWeight: FontWeight.bold,
+                                        color: colorScheme.primary,
                                       ),
+                                    ),
+                                  ),
 
-                                      ...entry.value.map(
-                                        (tx) => _CompactTransactionCard(
-                                          transaction: tx,
-                                          onTap: () {
-                                            context.push('/transaction-detail', extra: tx);
-                                          },
-                                          onNameTap: () {
-                                            final name = tx['name'] as String?;
-                                            if (name != null && name.isNotEmpty) {
-                                              setState(() {
-                                                _selectedPersonName = name;
-                                              });
-                                            }
-                                          },
-                                        ),
-                                      ),
+                                  ...entry.value.map(
+                                    (tx) => _CompactTransactionCard(
+                                      transaction: tx,
+                                      onTap: () {
+                                        context.push('/transaction-detail', extra: tx);
+                                      },
+                                      onNameTap: () {
+                                        final name = tx['name'] as String?;
+                                        if (name != null && name.isNotEmpty) {
+                                          setState(() {
+                                            _selectedPersonName = name;
+                                          });
+                                        }
+                                      },
+                                    ),
+                                  ),
 
-                                      const SizedBox(height: 8),
-                                    ],
-                                  );
-                                },
-                              ),
+                                  //const SizedBox(height: 30),
+                                ],
+                              );
+                            },
+                          ),
                   ),
-                 
-                  const SizedBox(height: 16),
-                ],
-              ),
+                ),
+              ],
             ),
           );
         },
@@ -294,9 +296,9 @@ class _PersonalTabContentState extends State<PersonalTabContent> {
             Text(
               'Total Balance',
               style: TextStyle(
-                fontSize: 12,
+                fontSize: 16,
                 color: colorScheme.onPrimaryContainer.withValues(alpha: 0.8),
-                fontWeight: FontWeight.w500,
+                fontWeight: FontWeight.w700,
               ),
             ),
             const SizedBox(height: 4),
@@ -329,7 +331,8 @@ class _PersonalTabContentState extends State<PersonalTabContent> {
         Text(
           label,
           style: TextStyle(
-            fontSize: 10,
+            fontSize: 14,
+            fontWeight: FontWeight.w700,
             color: colorScheme.onPrimaryContainer.withValues(alpha: 0.7),
           ),
         ),
@@ -399,11 +402,17 @@ class _PersonalTabContentState extends State<PersonalTabContent> {
 
   // Compact Search Bar
   Widget _buildCompactSearchBar(ThemeData theme) {
-    return TextField(
+  return SizedBox(
+    height: 40, // Adjust as needed
+    child: TextField(
       controller: _searchController,
       decoration: InputDecoration(
         hintText: 'Search transactions...',
         prefixIcon: const Icon(Icons.search, size: 18),
+        prefixIconConstraints: const BoxConstraints(
+          minWidth: 36,
+          minHeight: 36,
+        ),
         suffixIcon: _searchQuery.isNotEmpty
             ? IconButton(
                 icon: const Icon(Icons.clear, size: 18),
@@ -415,20 +424,28 @@ class _PersonalTabContentState extends State<PersonalTabContent> {
                 },
               )
             : null,
+        suffixIconConstraints: const BoxConstraints(
+          minWidth: 36,
+          minHeight: 36,
+        ),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
         ),
         filled: true,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        isDense: true, // Makes the field compact
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 12,
+          vertical: 8,
+        ),
       ),
       onChanged: (value) {
         setState(() {
           _searchQuery = value;
         });
       },
-    );
-  }
-
+    ),
+  );
+}
   // Compact Filter Chips
   Widget _buildCompactFilterChips(ThemeData theme) {
     return SizedBox(
@@ -593,7 +610,6 @@ class _CompactTransactionCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
     final amount = (() {
       final val = transaction['amount'];
       if (val is num) return val.toDouble();
@@ -742,7 +758,7 @@ class _CompactTransactionCard extends StatelessWidget {
                             style: theme.textTheme.bodySmall?.copyWith(
                               color: Colors.grey,
                               fontSize: 10,
-                          ),
+                            ),
                           ),
                         if (date != null && paymentMode.isNotEmpty)
                           Text(

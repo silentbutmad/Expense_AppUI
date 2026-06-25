@@ -39,22 +39,7 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     final expenseProvider = Provider.of<ExpenseProvider>(context);
-
     final isBusiness = _mode == ExpenseMode.business;
-
-    // Use backend summary for totals (consistent data source)
-    final totalIncome = expenseProvider.totalIncome;
-    final totalExpenses = expenseProvider.totalExpense;
-    final totalBalance = expenseProvider.totalBalance;
-
-    // Filter personal transactions for display only
-    final filteredTransactions = expenseProvider.personalTransactions
-        .where((tx) {
-          final isBusinessTx = tx['isBusiness'] == true;
-          return isBusiness == isBusinessTx;
-        })
-        .toList();
-
     final textTheme = Theme.of(context).textTheme;
 
     return Scaffold(
@@ -67,165 +52,39 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ],
       ),
-
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // TOGGLE BUTTON
-            Row(
+      body: Column(
+        children: [
+          // TOGGLE BUTTON
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 10),
+            child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 ChoiceChip(
                   label: const Text("Personal"),
-                  selected: _mode == ExpenseMode.personal,
+                  selected: !isBusiness,
                   onSelected: (_) {
                     setState(() => _mode = ExpenseMode.personal);
                   },
                 ),
-                const SizedBox(width: 10),
+                const SizedBox(width: 40),
                 ChoiceChip(
                   label: const Text("Business"),
-                  selected: _mode == ExpenseMode.business,
+                  selected: isBusiness,
                   onSelected: (_) {
                     setState(() => _mode = ExpenseMode.business);
                   },
                 ),
               ],
             ),
-
-            const SizedBox(height: 20),
-
-            if (isBusiness) ...[
-              // BUSINESS BALANCE CARD
-              Card(
-                elevation: 8,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.all(20),
-                  child: Column(
-                    children: [
-                      Text(
-                        'Business Balance',
-                        style: textTheme.headlineMedium,
-                      ),
-                      const SizedBox(height: 10),
-                      Text(
-                        '\u20b9${totalBalance.toStringAsFixed(2)}',
-                        style: textTheme.displayLarge?.copyWith(
-                          color: totalBalance >= 0
-                              ? Colors.green
-                              : Colors.red,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 20),
-
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceAround,
-                        children: [
-                          Column(
-                            children: [
-                              Text(
-                                'Revenue',
-                                style: textTheme.titleMedium,
-                              ),
-                              const SizedBox(height: 5),
-                              Text(
-                                '\u20b9${totalIncome.toStringAsFixed(2)}',
-                                style: textTheme.bodyLarge
-                                    ?.copyWith(color: Colors.green),
-                              ),
-                            ],
-                          ),
-                          Column(
-                            children: [
-                              Text(
-                                'Costs',
-                                style: textTheme.titleMedium,
-                              ),
-                              const SizedBox(height: 5),
-                              Text(
-                                '\u20b9${totalExpenses.toStringAsFixed(2)}',
-                                style: textTheme.bodyLarge
-                                    ?.copyWith(color: Colors.red),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-
-              const SizedBox(height: 25),
-
-              // QUICK ACTIONS
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
-                children: [
-                  _buildQuickActionButton(
-                    context,
-                    icon: Icons.add,
-                    label: 'Add Business Expense',
-                    onPressed: () => context.push('/add-expense', extra: true),
-                  ),
-                  _buildQuickActionButton(
-                    context,
-                    icon: Icons.add_card,
-                    label: 'Add Revenue',
-                    onPressed: () => context.push('/add-expense', extra: {
-                      'isBusiness': true,
-                      'transactionType': 'RECEIVED',
-                      'transactionCategory': 'INCOME',
-                    }),
-                  ),
-                ],
-              ),
-
-              const SizedBox(height: 25),
-
-              // PIE CHART
-              Text(
-                'Business Expenses',
-                style: textTheme.headlineSmall,
-              ),
-              const SizedBox(height: 15),
-
-              SizedBox(
-                height: 200,
-                child: filteredTransactions.isEmpty
-                    ? const Center(child: Text('No expenses yet.'))
-                    : ExpensePieChart(transactions: filteredTransactions),
-              ),
-
-              const SizedBox(height: 25),
-
-              // RECENT TRANSACTIONS
-              Text(
-                'Recent Transactions',
-                style: textTheme.headlineSmall,
-              ),
-              const SizedBox(height: 10),
-
-              filteredTransactions.isEmpty
-                  ? const Center(child: Text('No recent transactions.'))
-                  : ExpenseList(
-                      transactions: filteredTransactions.take(5).toList(),
-                    ),
-            ] else ...[
-              // Personal Tab Content
-              const PersonalTabContent(),
-            ],
-          ],
-        ),
+          ),
+          Expanded(
+            child: isBusiness
+                ? _buildBusinessBody(expenseProvider, textTheme)
+                : const PersonalTabContent(),
+          ),
+        ],
       ),
-
-      // BOTTOM NAV
       bottomNavigationBar: BottomNavigationBar(
         items: const [
           BottomNavigationBarItem(
@@ -244,6 +103,145 @@ class _HomeScreenState extends State<HomeScreen> {
         currentIndex: _selectedIndex,
         selectedItemColor: Theme.of(context).colorScheme.primary,
         onTap: _onItemTapped,
+      ),
+    );
+  }
+
+  Widget _buildBusinessBody(
+    ExpenseProvider expenseProvider,
+    TextTheme textTheme,
+  ) {
+    final totalIncome = expenseProvider.totalIncome;
+    final totalExpenses = expenseProvider.totalExpense;
+    final totalBalance = expenseProvider.totalBalance;
+    final filteredTransactions = expenseProvider.personalTransactions
+        .where((tx) => tx['isBusiness'] == true)
+        .toList();
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // BUSINESS BALANCE CARD
+          Card(
+            elevation: 8,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                children: [
+                  Text(
+                    'Business Balance',
+                    style: textTheme.headlineMedium,
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    '\u20b9${totalBalance.toStringAsFixed(2)}',
+                    style: textTheme.displayLarge?.copyWith(
+                      color: totalBalance >= 0 ? Colors.green : Colors.red,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceAround,
+                    children: [
+                      Column(
+                        children: [
+                          Text(
+                            'Revenue',
+                            style: textTheme.titleMedium,
+                          ),
+                          const SizedBox(height: 5),
+                          Text(
+                            '\u20b9${totalIncome.toStringAsFixed(2)}',
+                            style: textTheme.bodyLarge
+                                ?.copyWith(color: Colors.green),
+                          ),
+                        ],
+                      ),
+                      Column(
+                        children: [
+                          Text(
+                            'Costs',
+                            style: textTheme.titleMedium,
+                          ),
+                          const SizedBox(height: 5),
+                          Text(
+                            '\u20b9${totalExpenses.toStringAsFixed(2)}',
+                            style: textTheme.bodyLarge
+                                ?.copyWith(color: Colors.red),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+          const SizedBox(height: 25),
+
+          // QUICK ACTIONS
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: [
+              _buildQuickActionButton(
+                context,
+                icon: Icons.add,
+                label: 'Add Business Expense',
+                onPressed: () => context.push('/add-expense', extra: true),
+              ),
+              _buildQuickActionButton(
+                context,
+                icon: Icons.add_card,
+                label: 'Add Revenue',
+                onPressed: () => context.push('/add-expense', extra: {
+                  'isBusiness': true,
+                  'transactionType': 'RECEIVED',
+                  'transactionCategory': 'INCOME',
+                }),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 25),
+
+          // PIE CHART
+          Text(
+            'Business Expenses',
+            style: textTheme.headlineSmall,
+          ),
+          const SizedBox(height: 15),
+
+          SizedBox(
+            height: 200,
+            child: filteredTransactions.isEmpty
+                ? const Center(child: Text('No expenses yet.'))
+                : ExpensePieChart(transactions: filteredTransactions),
+          ),
+
+          const SizedBox(height: 25),
+
+          // RECENT TRANSACTIONS
+          Text(
+            'Recent Transactions',
+            style: textTheme.headlineSmall,
+          ),
+          const SizedBox(height: 10),
+
+          Expanded(
+            child: filteredTransactions.isEmpty
+                ? const Center(child: Text('No recent transactions.'))
+                : ExpenseList(
+                    transactions: filteredTransactions.take(5).toList(),
+                  ),
+          ),
+        ],
       ),
     );
   }
