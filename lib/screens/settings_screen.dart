@@ -63,6 +63,22 @@ class SettingsScreen extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.all(16.0),
             child: Text(
+              'Support',
+              style: Theme.of(context).textTheme.titleSmall,
+            ),
+          ),
+          ListTile(
+            leading: const Icon(Icons.help_outline),
+            title: const Text('Help & Support'),
+            subtitle: const Text('Get help, create tickets, view FAQs'),
+            onTap: () {
+              context.push('/help-support');
+            },
+          ),
+          const Divider(),
+          Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Text(
               'Account',
               style: Theme.of(context).textTheme.titleSmall,
             ),

@@ -56,7 +56,7 @@ class _HomeScreenState extends State<HomeScreen> {
         children: [
           // TOGGLE BUTTON
           Padding(
-            padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 10),
+            padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 10),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
@@ -66,6 +66,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   onSelected: (_) {
                     setState(() => _mode = ExpenseMode.personal);
                   },
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                 ),
                 const SizedBox(width: 40),
                 ChoiceChip(
@@ -74,6 +75,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   onSelected: (_) {
                     setState(() => _mode = ExpenseMode.business);
                   },
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                 ),
               ],
             ),

@@ -23,23 +23,53 @@ class ExpenseList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (transactions.isEmpty) {
+      return const Center(
+        child: Padding(
+          padding: EdgeInsets.all(32.0),
+          child: Text('No transactions found'),
+        ),
+      );
+    }
+
     return ListView.builder(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
       itemCount: transactions.length,
       itemBuilder: (context, index) {
         final tx = transactions[index];
+        debugPrint('Transaction $index: $tx');
+        
         final amount = (tx['amount'] as num?)?.toDouble() ?? 0.0;
-        final category = tx['category'] as String? ?? '';
+        final category = tx['category'] as String? ?? tx['name'] as String? ?? 'Unknown';
         final dateStr = tx['transaction_date'] as String? ?? '';
+        final transactionTime = tx['transaction_time'] as String? ?? '';
         final transactionType = tx['transaction_type'] as String? ?? '';
 
         DateTime? date;
+        String displayDate = 'No date';
+        
         if (dateStr.isNotEmpty) {
           try {
-            date = DateTime.parse(dateStr);
+            // Handle YYYY-MM-DD format from backend
+            final parts = dateStr.split('-');
+            if (parts.length == 3) {
+              date = DateTime(
+                int.parse(parts[0]),
+                int.parse(parts[1]),
+                int.parse(parts[2]),
+              );
+              displayDate = DateFormat.yMMMd().format(date!);
+              if (transactionTime.isNotEmpty) {
+                displayDate += ' at $transactionTime';
+              }
+            } else {
+              date = DateTime.parse(dateStr);
+              displayDate = DateFormat.yMMMd().format(date);
+            }
           } catch (e) {
-            // Keep date as null
+            debugPrint('Error parsing date: $e');
+            // Keep default 'No date'
           }
         }
 
@@ -71,7 +101,7 @@ class ExpenseList extends StatelessWidget {
               style: Theme.of(context).textTheme.bodyLarge,
             ),
             subtitle: Text(
-              date != null ? DateFormat.yMMMd().format(date) : 'No date',
+              displayDate,
               style: Theme.of(context).textTheme.bodySmall,
             ),
             trailing: Text(

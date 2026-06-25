@@ -116,7 +116,9 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
                             ),
                           ),
                           subtitle: Text(
-                            date != null ? DateFormat.yMMMd().format(date) : 'No date',
+                            date != null 
+                                ? '${DateFormat.yMMMd().format(date)} at ${DateFormat.jm().format(date)}'
+                                : 'No date',
                             style: TextStyle(color: Colors.grey[600]),
                           ),
                           trailing: Text(

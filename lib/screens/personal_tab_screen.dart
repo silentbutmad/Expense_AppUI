@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
@@ -11,7 +12,26 @@ class PersonalTabContent extends StatefulWidget {
   State<PersonalTabContent> createState() => _PersonalTabContentState();
 }
 
-class _PersonalTabContentState extends State<PersonalTabContent> {
+class _PersonalTabContentState extends State<PersonalTabContent> with WidgetsBindingObserver {
+  bool _isFirstBuild = true;
+  
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // Refresh when app comes to foreground
+    if (state == AppLifecycleState.resumed) {
+      _loadData();
+    }
+  }
+  
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Refresh when returning to this screen
+    if (!_isFirstBuild) {
+      _loadData();
+    }
+    _isFirstBuild = false;
+  }
   // Filter state
   String _selectedFilter = 'All';
   final List<String> _filterOptions = const [
@@ -27,9 +47,10 @@ class _PersonalTabContentState extends State<PersonalTabContent> {
     'Date Range',
   ];
 
-  // Search state
+  // Search state with debounce
   final TextEditingController _searchController = TextEditingController();
-  String _searchQuery = '';
+  Timer? _searchDebounce;
+  String _currentSearchQuery = '';
 
   // Date range filter
   DateTime? _startDate;
@@ -38,18 +59,35 @@ class _PersonalTabContentState extends State<PersonalTabContent> {
   // Selected person for filtered view
   String? _selectedPersonName;
 
+  // Scroll controller for infinite scroll
+  final ScrollController _scrollController = ScrollController();
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadData();
     });
+    
+    _scrollController.addListener(_onScroll);
   }
 
   @override
   void dispose() {
+    _searchDebounce?.cancel();
     _searchController.dispose();
+    _scrollController.dispose();
     super.dispose();
+  }
+
+  void _onScroll() {
+    if (_scrollController.position.pixels >=
+        _scrollController.position.maxScrollExtent - 200) {
+      // Load more when near bottom
+      final provider = Provider.of<ExpenseProvider>(context, listen: false);
+      debugPrint('Scroll detected - hasMoreData: ${provider.hasMoreData}, isLoadingMore: ${provider.isLoadingMore}');
+      provider.loadMoreTransactions();
+    }
   }
 
   Future<void> _loadData() async {
@@ -61,101 +99,112 @@ class _PersonalTabContentState extends State<PersonalTabContent> {
     await _loadData();
   }
 
-  // Get filtered transactions
-  List<Map<String, dynamic>> _getFilteredTransactions(List<Map<String, dynamic>> transactions) {
-    var filtered = List<Map<String, dynamic>>.from(transactions);
-
-    // Apply person filter
-    if (_selectedPersonName != null) {
-      filtered = filtered.where((tx) {
-        final name = tx['name'] as String? ?? '';
-        return name.toLowerCase() == _selectedPersonName!.toLowerCase();
-      }).toList();
-    }
-
-    // Apply type filter
-    switch (_selectedFilter) {
-      case 'Income':
-        filtered = filtered.where((tx) => tx['transaction_type'] == 'INCOME').toList();
-        break;
-      case 'Expense':
-        filtered = filtered.where((tx) => tx['transaction_type'] == 'EXPENSE').toList();
-        break;
-      case 'Loan':
-        filtered = filtered.where((tx) => tx['transaction_type'] == 'LOAN').toList();
-        break;
-      case 'Borrow':
-        filtered = filtered.where((tx) {
-          return tx['transaction_type'] == 'LOAN' && tx['loan_type'] == 'BORROW';
-        }).toList();
-        break;
-      case 'Lent':
-        filtered = filtered.where((tx) {
-          return tx['transaction_type'] == 'LOAN' && tx['loan_type'] == 'LENT';
-        }).toList();
-        break;
-      case 'Cash':
-        filtered = filtered.where((tx) => tx['payment_mode'] == 'CASH').toList();
-        break;
-      case 'Online':
-        filtered = filtered.where((tx) => tx['payment_mode'] == 'ONLINE').toList();
-        break;
-      case 'Category':
-        // Category filter would need a sub-filter, for now show all
-        break;
-      case 'Date Range':
-        if (_startDate != null && _endDate != null) {
-          filtered = filtered.where((tx) {
-            final dateStr = tx['transaction_date'] as String? ?? '';
-            if (dateStr.isEmpty) return false;
-            try {
-              final date = DateTime.parse(dateStr);
-              return date.isAfter(_startDate!.subtract(const Duration(days: 1))) &&
-                  date.isBefore(_endDate!.add(const Duration(days: 1)));
-            } catch (e) {
-              return false;
-            }
-          }).toList();
-        }
-        break;
-    }
-
-    // Apply search filter
-    if (_searchQuery.isNotEmpty) {
-      final query = _searchQuery.toLowerCase();
-      filtered = filtered.where((tx) {
-        final name = (tx['name'] as String? ?? '').toLowerCase();
-        final category = (tx['category'] as String? ?? '').toLowerCase();
-        final remark = (tx['remark'] as String? ?? '').toLowerCase();
-        return name.contains(query) || category.contains(query) || remark.contains(query);
-      }).toList();
-    }
-
-    // Sort by date descending
-    filtered.sort((a, b) {
-      final dateA = DateTime.tryParse(a['transaction_date'] as String? ?? '') ?? DateTime.now();
-      final dateB = DateTime.tryParse(b['transaction_date'] as String? ?? '') ?? DateTime.now();
-      return dateB.compareTo(dateA);
+  void _onSearchChanged(String value) {
+    // Cancel previous debounce
+    _searchDebounce?.cancel();
+    
+    setState(() {
+      _currentSearchQuery = value;
     });
 
-    return filtered;
+    // Debounce search for 500ms
+    _searchDebounce = Timer(const Duration(milliseconds: 500), () {
+      final provider = Provider.of<ExpenseProvider>(context, listen: false);
+      provider.updateSearchQuery(value.isEmpty ? null : value);
+    });
   }
 
-  // Group transactions by date
-  Map<String, List<Map<String, dynamic>>> _groupByDate(List<Map<String, dynamic>> transactions) {
-    final Map<String, List<Map<String, dynamic>>> grouped = {};
-    for (final tx in transactions) {
-      final dateStr = tx['transaction_date'] as String? ?? '';
-      if (dateStr.isEmpty) continue;
-      try {
-        final date = DateTime.parse(dateStr);
-        final key = DateFormat.yMMMd().format(date);
-        grouped.putIfAbsent(key, () => []).add(tx);
-      } catch (e) {
-        // Skip invalid dates
-      }
+  void _clearSearch() {
+    _searchController.clear();
+    setState(() {
+      _currentSearchQuery = '';
+    });
+    final provider = Provider.of<ExpenseProvider>(context, listen: false);
+    provider.updateSearchQuery(null);
+  }
+
+  void _onFilterChanged(String filter) {
+    setState(() {
+      _selectedFilter = filter;
+    });
+
+    final provider = Provider.of<ExpenseProvider>(context, listen: false);
+    final filters = <String, String>{};
+
+    // Map UI filter to backend filter
+    switch (filter) {
+      case 'Income':
+        filters['transaction_type'] = 'INCOME';
+        break;
+      case 'Expense':
+        filters['transaction_type'] = 'EXPENSE';
+        break;
+      case 'Loan':
+        filters['transaction_type'] = 'LOAN';
+        break;
+      case 'Borrow':
+        filters['transaction_type'] = 'LOAN';
+        filters['loan_type'] = 'BORROW';
+        break;
+      case 'Lent':
+        filters['transaction_type'] = 'LOAN';
+        filters['loan_type'] = 'LENT';
+        break;
+      case 'Cash':
+        filters['payment_mode'] = 'CASH';
+        break;
+      case 'Online':
+        filters['payment_mode'] = 'ONLINE';
+        break;
+      case 'Category':
+        // Category filter would need a sub-filter picker
+        // For now, we'll show all or prompt user
+        _showCategoryPicker(provider);
+        return;
+      case 'Date Range':
+        _selectDateRange(provider);
+        return;
+      case 'All':
+      default:
+        // No filters - will fetch all
+        break;
     }
-    return grouped;
+
+    // Single API call with all filters
+    provider.fetchFilteredTransactions(filters: filters);
+  }
+
+  void _showCategoryPicker(ExpenseProvider provider) {
+    // Show a dialog to select category
+    // For now, just show a snackbar
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Category picker coming soon')),
+    );
+  }
+
+  Future<void> _selectDateRange(ExpenseProvider provider) async {
+    final picked = await showDateRangePicker(
+      context: context,
+      firstDate: DateTime(2020),
+      lastDate: DateTime.now(),
+      initialDateRange: _startDate != null && _endDate != null
+          ? DateTimeRange(start: _startDate!, end: _endDate!)
+          : null,
+    );
+
+    if (picked != null) {
+      setState(() {
+        _startDate = picked.start;
+        _endDate = picked.end;
+      });
+
+      // Format dates as YYYY-MM-DD
+      final startDateStr = DateFormat('yyyy-MM-dd').format(picked.start);
+      final endDateStr = DateFormat('yyyy-MM-dd').format(picked.end);
+
+      provider.updateFilter('start_date', startDateStr);
+      provider.updateFilter('end_date', endDateStr);
+    }
   }
 
   @override
@@ -174,12 +223,10 @@ class _PersonalTabContentState extends State<PersonalTabContent> {
       },
       child: Consumer<ExpenseProvider>(
         builder: (context, provider, child) {
-          final allTransactions = provider.personalTransactions;
-          final filteredTransactions = _getFilteredTransactions(allTransactions);
-          final groupedTransactions = _groupByDate(filteredTransactions);
+          final transactions = provider.personalTransactions;
 
           return Padding(
-            padding: const EdgeInsets.fromLTRB(20,0, 20, 0),
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -211,59 +258,11 @@ class _PersonalTabContentState extends State<PersonalTabContent> {
                 ),
                 const SizedBox(height: 8),
 
-                // EXPANDED LISTVIEW - takes remaining space
+                // TRANSACTIONS LIST
                 Expanded(
                   child: RefreshIndicator(
                     onRefresh: _handleRefresh,
-                    child: groupedTransactions.isEmpty
-                        ? ListView(
-                            children: [
-                              const SizedBox(height: 60),
-                              _buildCompactEmptyState(theme),
-                            ],
-                          )
-                        : ListView.builder(
-                            padding: const EdgeInsets.only(bottom: 16),
-                            itemCount: groupedTransactions.length,
-                            itemBuilder: (context, index) {
-                              final entry = groupedTransactions.entries.elementAt(index);
-
-                              return Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Padding(
-                                    padding: const EdgeInsets.symmetric(vertical: 20),
-                                    child: Text(
-                                      entry.key,
-                                      style: theme.textTheme.labelLarge?.copyWith(
-                                        fontWeight: FontWeight.bold,
-                                        color: colorScheme.primary,
-                                      ),
-                                    ),
-                                  ),
-
-                                  ...entry.value.map(
-                                    (tx) => _CompactTransactionCard(
-                                      transaction: tx,
-                                      onTap: () {
-                                        context.push('/transaction-detail', extra: tx);
-                                      },
-                                      onNameTap: () {
-                                        final name = tx['name'] as String?;
-                                        if (name != null && name.isNotEmpty) {
-                                          setState(() {
-                                            _selectedPersonName = name;
-                                          });
-                                        }
-                                      },
-                                    ),
-                                  ),
-
-                                  //const SizedBox(height: 30),
-                                ],
-                              );
-                            },
-                          ),
+                    child: _buildTransactionList(provider, theme, colorScheme, transactions),
                   ),
                 ),
               ],
@@ -272,6 +271,123 @@ class _PersonalTabContentState extends State<PersonalTabContent> {
         },
       ),
     );
+  }
+
+  Widget _buildTransactionList(
+    ExpenseProvider provider,
+    ThemeData theme,
+    ColorScheme colorScheme,
+    List<Map<String, dynamic>> transactions,
+  ) {
+    // Loading state
+    if (provider.isLoadingTransactions && transactions.isEmpty) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    // Error state
+    if (provider.errorMessage != null && transactions.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.error_outline, size: 56, color: Colors.red),
+            const SizedBox(height: 12),
+            Text(
+              'Error: ${provider.errorMessage}',
+              style: theme.textTheme.bodyMedium?.copyWith(color: Colors.red),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 12),
+            ElevatedButton(
+              onPressed: _handleRefresh,
+              child: const Text('Retry'),
+            ),
+          ],
+        ),
+      );
+    }
+
+    // Empty state
+    if (transactions.isEmpty && !provider.isLoadingTransactions) {
+      return ListView(
+        children: [
+          const SizedBox(height: 60),
+          _buildCompactEmptyState(theme),
+        ],
+      );
+    }
+
+    // Group transactions by date
+    final groupedTransactions = _groupByDate(transactions);
+
+    // Transactions list with infinite scroll and date grouping
+    return ListView.builder(
+      controller: _scrollController,
+      padding: const EdgeInsets.only(bottom: 16),
+      itemCount: groupedTransactions.length + (provider.hasMoreData ? 1 : 0),
+      itemBuilder: (context, index) {
+        // Show loading indicator at bottom for pagination
+        if (index == groupedTransactions.length) {
+          return const Padding(
+            padding: EdgeInsets.all(16.0),
+            child: Center(child: CircularProgressIndicator()),
+          );
+        }
+
+        final entry = groupedTransactions.entries.elementAt(index);
+        
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Date header
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              child: Text(
+                entry.key,
+                style: theme.textTheme.labelLarge?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: colorScheme.primary,
+                ),
+              ),
+            ),
+            // Transactions for this date
+            ...entry.value.map(
+              (tx) => _CompactTransactionCard(
+                transaction: tx,
+                onTap: () {
+                  context.push('/transaction-detail', extra: tx);
+                },
+                onNameTap: () {
+                  final name = tx['name'] as String?;
+                  if (name != null && name.isNotEmpty) {
+                    setState(() {
+                      _selectedPersonName = name;
+                    });
+                  }
+                },
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  // Group transactions by date
+  Map<String, List<Map<String, dynamic>>> _groupByDate(List<Map<String, dynamic>> transactions) {
+    final Map<String, List<Map<String, dynamic>>> grouped = {};
+    for (final tx in transactions) {
+      final dateStr = tx['transaction_date'] as String? ?? '';
+      if (dateStr.isEmpty) continue;
+      try {
+        final date = DateTime.parse(dateStr);
+        final key = DateFormat.yMMMd().format(date);
+        grouped.putIfAbsent(key, () => []).add(tx);
+      } catch (e) {
+        // Skip invalid dates
+      }
+    }
+    return grouped;
   }
 
   // Compact Summary Card
@@ -402,50 +518,42 @@ class _PersonalTabContentState extends State<PersonalTabContent> {
 
   // Compact Search Bar
   Widget _buildCompactSearchBar(ThemeData theme) {
-  return SizedBox(
-    height: 40, // Adjust as needed
-    child: TextField(
-      controller: _searchController,
-      decoration: InputDecoration(
-        hintText: 'Search transactions...',
-        prefixIcon: const Icon(Icons.search, size: 18),
-        prefixIconConstraints: const BoxConstraints(
-          minWidth: 36,
-          minHeight: 36,
+    return SizedBox(
+      height: 40,
+      child: TextField(
+        controller: _searchController,
+        decoration: InputDecoration(
+          hintText: 'Search transactions...',
+          prefixIcon: const Icon(Icons.search, size: 18),
+          prefixIconConstraints: const BoxConstraints(
+            minWidth: 36,
+            minHeight: 36,
+          ),
+          suffixIcon: _currentSearchQuery.isNotEmpty
+              ? IconButton(
+                  icon: const Icon(Icons.clear, size: 18),
+                  onPressed: _clearSearch,
+                )
+              : null,
+          suffixIconConstraints: const BoxConstraints(
+            minWidth: 36,
+            minHeight: 36,
+          ),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          filled: true,
+          isDense: true,
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 12,
+            vertical: 8,
+          ),
         ),
-        suffixIcon: _searchQuery.isNotEmpty
-            ? IconButton(
-                icon: const Icon(Icons.clear, size: 18),
-                onPressed: () {
-                  _searchController.clear();
-                  setState(() {
-                    _searchQuery = '';
-                  });
-                },
-              )
-            : null,
-        suffixIconConstraints: const BoxConstraints(
-          minWidth: 36,
-          minHeight: 36,
-        ),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
-        filled: true,
-        isDense: true, // Makes the field compact
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 12,
-          vertical: 8,
-        ),
+        onChanged: _onSearchChanged,
       ),
-      onChanged: (value) {
-        setState(() {
-          _searchQuery = value;
-        });
-      },
-    ),
-  );
-}
+    );
+  }
+
   // Compact Filter Chips
   Widget _buildCompactFilterChips(ThemeData theme) {
     return SizedBox(
@@ -466,12 +574,15 @@ class _PersonalTabContentState extends State<PersonalTabContent> {
               ),
               selected: isSelected,
               onSelected: (selected) {
-                setState(() {
-                  _selectedFilter = filter;
-                  if (filter == 'Date Range' && _startDate == null) {
-                    _selectDateRange();
-                  }
-                });
+                if (selected) {
+                  _onFilterChanged(filter);
+                } else {
+                  setState(() {
+                    _selectedFilter = 'All';
+                  });
+                  final provider = Provider.of<ExpenseProvider>(context, listen: false);
+                  provider.clearFilters();
+                }
               },
               selectedColor: theme.colorScheme.primaryContainer,
               checkmarkColor: theme.colorScheme.onPrimaryContainer,
@@ -530,24 +641,6 @@ class _PersonalTabContentState extends State<PersonalTabContent> {
         ),
       ),
     );
-  }
-
-  Future<void> _selectDateRange() async {
-    final picked = await showDateRangePicker(
-      context: context,
-      firstDate: DateTime(2020),
-      lastDate: DateTime.now(),
-      initialDateRange: _startDate != null && _endDate != null
-          ? DateTimeRange(start: _startDate!, end: _endDate!)
-          : null,
-    );
-
-    if (picked != null) {
-      setState(() {
-        _startDate = picked.start;
-        _endDate = picked.end;
-      });
-    }
   }
 }
 
@@ -609,6 +702,8 @@ class _CompactTransactionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+   
+  
     final theme = Theme.of(context);
     final amount = (() {
       final val = transaction['amount'];
@@ -620,14 +715,21 @@ class _CompactTransactionCard extends StatelessWidget {
     final category = transaction['category'] as String? ?? '';
     final paymentMode = transaction['payment_mode'] as String? ?? '';
     final dateStr = transaction['transaction_date'] as String? ?? '';
-    final timeStr = transaction['time'] as String? ?? '';
     final remark = transaction['remark'] as String? ?? '';
     final personName = transaction['name'] as String? ?? '';
 
     DateTime? date;
+    String? timeStr;
     if (dateStr.isNotEmpty) {
       try {
         date = DateTime.parse(dateStr);
+        // Use transaction_time field if available, otherwise extract from date
+        final transactionTime = transaction['transaction_time'] as String?;
+        if (transactionTime != null && transactionTime.isNotEmpty) {
+          timeStr = transactionTime;
+        } else {
+          timeStr = DateFormat.jm().format(date);
+        }
       } catch (e) {
         // Keep date as null
       }
@@ -752,7 +854,7 @@ class _CompactTransactionCard extends StatelessWidget {
                               fontSize: 10,
                             ),
                           ),
-                        if (date != null && timeStr.isNotEmpty)
+                        if (date != null && timeStr != null && timeStr.isNotEmpty)
                           Text(
                             ' at $timeStr',
                             style: theme.textTheme.bodySmall?.copyWith(
@@ -770,20 +872,6 @@ class _CompactTransactionCard extends StatelessWidget {
                           ),
                       ],
                     ),
-                    if (remark.isNotEmpty)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 2.0),
-                        child: Text(
-                          remark,
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: Colors.grey[600],
-                            fontStyle: FontStyle.italic,
-                            fontSize: 10,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
                   ],
                 ),
               ),

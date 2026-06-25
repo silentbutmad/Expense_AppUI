@@ -73,4 +73,10 @@ class TokenManager {
     final refreshToken = await getRefreshToken();
     return accessToken != null && refreshToken != null;
   }
+
+  /// Get user ID from stored user data
+  static Future<String?> getUserId() async {
+    final userData = await getUserData();
+    return userData?['id']?.toString();
+  }
 }

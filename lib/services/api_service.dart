@@ -260,6 +260,10 @@ class ApiService with ChangeNotifier {
     return await _delete(endpoint);
   }
 
+  Future<dynamic> patchRequest(String endpoint, Map<String, dynamic> body) async {
+    return await _patch(endpoint, body: body);
+  }
+
   // =========================
   // PRIVATE HTTP METHODS
   // =========================
@@ -349,6 +353,31 @@ class ApiService with ChangeNotifier {
 
         final response = await http.delete(uri, headers: requestHeaders)
             .timeout(_timeout);
+
+        return _handleResponse(response);
+      },
+      requiresAuth: requiresAuth,
+    );
+  }
+
+  Future<dynamic> _patch(
+    String endpoint, {
+    Map<String, dynamic>? body,
+    bool requiresAuth = true,
+    Map<String, String>? headers,
+  }) async {
+    return await _makeRequestWithRetry(
+      () async {
+        final uri = Uri.parse('$_baseUrl$endpoint');
+        final requestHeaders = _buildHeaders(requiresAuth, headers);
+
+        debugPrint('PATCH: $uri');
+
+        final response = await http.patch(
+          uri,
+          headers: requestHeaders,
+          body: body != null ? jsonEncode(body) : null,
+        ).timeout(_timeout);
 
         return _handleResponse(response);
       },
@@ -511,6 +540,16 @@ class ApiService with ChangeNotifier {
     return [];
   }
 
+  Future<Map<String, dynamic>> getAllPersonalTransactionsWithFilters({
+    Map<String, String>? filters,
+  }) async {
+    final queryParams = filters != null && filters.isNotEmpty
+        ? '?${filters.entries.map((e) => '${Uri.encodeComponent(e.key)}=${Uri.encodeComponent(e.value)}').join('&')}'
+        : '';
+    final response = await _get('/expenses/allPersonalTransactions$queryParams');
+    return response as Map<String, dynamic>;
+  }
+
   Future<Map<String, dynamic>> getTransactionById(String id) async {
     final response = await _get('/expenses/transaction/$id');
     return response as Map<String, dynamic>;
@@ -590,6 +629,82 @@ class ApiService with ChangeNotifier {
       },
     );
     return response;
+  }
+
+  // =========================
+  // SUPPORT APIs
+  // =========================
+
+  Future<Map<String, dynamic>> createSupportTicket(
+    Map<String, dynamic> ticketData,
+  ) async {
+    final response = await _post(
+      '/support/tickets',
+      body: ticketData,
+    );
+    return response as Map<String, dynamic>;
+  }
+
+  Future<List<dynamic>> getUserTickets(String userId) async {
+    final response = await _get('/support/tickets/user/$userId');
+    if (response is List) {
+      return response;
+    } else if (response is Map<String, dynamic>) {
+      return List<dynamic>.from(response['data'] ?? []);
+    }
+    return [];
+  }
+
+  Future<Map<String, dynamic>> getTicketById(String ticketId) async {
+    final response = await _get('/support/tickets/$ticketId');
+    return response as Map<String, dynamic>;
+  }
+
+  Future<Map<String, dynamic>> updateTicketStatus(
+    String ticketId,
+    String status,
+  ) async {
+    final response = await _patch(
+      '/support/tickets/$ticketId/status',
+      body: {'status': status},
+    );
+    return response as Map<String, dynamic>;
+  }
+
+  Future<Map<String, dynamic>> addComment(
+    String ticketId,
+    String message,
+  ) async {
+    final response = await _post(
+      '/support/tickets/$ticketId/comments',
+      body: {'message': message},
+    );
+    return response as Map<String, dynamic>;
+  }
+
+  Future<List<dynamic>> getComments(String ticketId) async {
+    final response = await _get('/support/tickets/$ticketId/comments');
+    if (response is List) {
+      return response;
+    } else if (response is Map<String, dynamic>) {
+      return List<dynamic>.from(response['data'] ?? []);
+    }
+    return [];
+  }
+
+  Future<List<dynamic>> getFaqs() async {
+    final response = await _get('/support/faqs', requiresAuth: false);
+    if (response is List) {
+      return response;
+    } else if (response is Map<String, dynamic>) {
+      return List<dynamic>.from(response['data'] ?? []);
+    }
+    return [];
+  }
+
+  Future<Map<String, dynamic>> getHelpInfo() async {
+    final response = await _get('/support/help', requiresAuth: false);
+    return response as Map<String, dynamic>;
   }
 
   // =========================

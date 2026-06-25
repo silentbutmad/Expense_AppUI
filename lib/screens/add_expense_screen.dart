@@ -32,6 +32,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
   final _emailController = TextEditingController();
   final _remarkController = TextEditingController();
   DateTime _selectedDate = DateTime.now();
+  TimeOfDay _selectedTime = TimeOfDay.now();
   String _selectedCategory = 'Food';
   String _selectedTransactionCategory = 'EXPENSE';
   String _selectedPaymentMode = 'CASH';
@@ -63,14 +64,28 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
     showDatePicker(
       context: context,
       initialDate: DateTime.now(),
-      firstDate: DateTime(2022),
-      lastDate: DateTime.now(),
+      firstDate: DateTime(2020),
+      lastDate: DateTime.now().add(const Duration(days: 365)),
     ).then((pickedDate) {
       if (pickedDate == null) {
         return;
       }
       setState(() {
         _selectedDate = pickedDate;
+      });
+    });
+  }
+
+  void _presentTimePicker() {
+    showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.now(),
+    ).then((pickedTime) {
+      if (pickedTime == null) {
+        return;
+      }
+      setState(() {
+        _selectedTime = pickedTime;
       });
     });
   }
@@ -121,7 +136,9 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
     final dateStr = tx['transaction_date'] as String?;
     if (dateStr != null && dateStr.isNotEmpty) {
       try {
-        _selectedDate = DateTime.parse(dateStr);
+        final parsedDate = DateTime.parse(dateStr);
+        _selectedDate = DateTime(parsedDate.year, parsedDate.month, parsedDate.day);
+        _selectedTime = TimeOfDay.fromDateTime(parsedDate);
       } catch (e) {
         // Keep default date
       }
@@ -164,7 +181,13 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
           "loan_type": isLoan
               ? (_isBorrow ? "BORROW" : "LENT")
               : null,
-          "transaction_date": _selectedDate.toIso8601String(),
+          "transaction_date": DateTime(
+            _selectedDate.year,
+            _selectedDate.month,
+            _selectedDate.day,
+            _selectedTime.hour,
+            _selectedTime.minute,
+          ).toIso8601String(),
         };
 
         bool success;
@@ -438,6 +461,24 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                   ),
                 ],
               ),
+              const SizedBox(height: 8),
+              Row(
+                children: <Widget>[
+                  Expanded(
+                    child: Text(
+                      'Time: ${_selectedTime.format(context)}',
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: _presentTimePicker,
+                    child: const Text(
+                      'Choose Time',
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
               const Spacer(),
               const SizedBox(height: 16),
               ElevatedButton(

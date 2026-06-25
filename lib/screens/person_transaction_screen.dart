@@ -352,7 +352,7 @@ class _TransactionCard extends StatelessWidget {
                       children: [
                         if (date != null)
                           Text(
-                            DateFormat.yMMMd().format(date),
+                            '${DateFormat.yMMMd().format(date)} at ${DateFormat.jm().format(date)}',
                             style: theme.textTheme.bodySmall?.copyWith(
                               color: Colors.grey,
                             ),

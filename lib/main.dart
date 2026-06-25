@@ -20,6 +20,9 @@ import 'package:myapp/screens/reports_screen.dart';
 import 'package:myapp/screens/reset_password_screen.dart';
 import 'package:myapp/screens/settings_screen.dart';
 import 'package:myapp/screens/splash_screen.dart';
+import 'package:myapp/screens/help_support_screen.dart';
+import 'package:myapp/screens/ticket_details_screen.dart';
+import 'package:myapp/providers/support_provider.dart';
 import 'package:myapp/screens/success_screen.dart';
 import 'package:myapp/screens/transaction_detail_screen.dart';
 import 'package:myapp/theme/app_theme.dart';
@@ -36,26 +39,30 @@ void main() async {
   final apiService = ApiService();
   await apiService.loadSession();
 
-  runApp(MyApp(apiService: apiService));
+  runApp(MyApp(apiService: apiService, supportProvider: SupportProvider(apiService)));
 }
 
 class MyApp extends StatefulWidget {
   final ApiService apiService;
+  final SupportProvider supportProvider;
 
-  const MyApp({super.key, required this.apiService});
+  const MyApp({super.key, required this.apiService, required this.supportProvider});
 
   @override
   State<MyApp> createState() => _MyAppState();
 }
 
-class _MyAppState extends State<MyApp> {
+class _MyAppState extends State<MyApp> with RouteAware {
   late final GoRouter _router;
+  final RouteObserver<PageRoute> _routeObserver = RouteObserver<PageRoute>();
 
   @override
   void initState() {
     super.initState();
     _router = GoRouter(
       initialLocation: '/splash',
+      navigatorKey: GlobalKey<NavigatorState>(),
+      observers: [_routeObserver],
       routes: [
         GoRoute(
           path: '/splash',
@@ -128,6 +135,14 @@ class _MyAppState extends State<MyApp> {
           builder: (context, state) => const SettingsScreen(),
         ),
         GoRoute(
+          path: '/help-support',
+          builder: (context, state) => const HelpSupportScreen(),
+        ),
+        GoRoute(
+          path: '/ticket-details',
+          builder: (context, state) => const TicketDetailsScreen(),
+        ),
+        GoRoute(
           path: '/ocr',
           builder: (context, state) => const OcrScreen(),
         ),
@@ -180,6 +195,7 @@ class _MyAppState extends State<MyApp> {
         ChangeNotifierProvider(create: (_) => ThemeProvider()),
         ChangeNotifierProvider(create: (_) => ExpenseProvider(widget.apiService)),
         ChangeNotifierProvider.value(value: widget.apiService),
+        ChangeNotifierProvider.value(value: widget.supportProvider),
       ],
       child: Consumer<ThemeProvider>(
         builder: (context, themeProvider, child) {
