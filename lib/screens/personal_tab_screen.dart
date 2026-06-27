@@ -723,6 +723,7 @@ class _CompactTransactionCard extends StatelessWidget {
     })();
     final transactionType = transaction['transaction_type'] as String? ?? '';
     final category = transaction['category'] as String? ?? '';
+    final transactionCategory = transaction['transactionCategory'] as String? ?? '';
     final paymentMode = transaction['payment_mode'] as String? ?? '';
     final dateStr = transaction['transaction_date'] as String? ?? '';
     final remark = transaction['remark'] as String? ?? '';
@@ -842,13 +843,26 @@ class _CompactTransactionCard extends StatelessWidget {
                         if (personName.isNotEmpty) const SizedBox(width: 6),
                         // Category
                         Expanded(
-                          child: Text(
-                            category,
-                            style: theme.textTheme.bodySmall?.copyWith(
-                              fontWeight: FontWeight.w500,
-                              fontSize: 12,
-                            ),
-                            overflow: TextOverflow.ellipsis,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                category,
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  fontWeight: FontWeight.w500,
+                                  fontSize: 12,
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              if (transactionCategory.isNotEmpty)
+                                Text(
+                                  transactionCategory,
+                                  style: theme.textTheme.bodySmall?.copyWith(
+                                    color: Colors.grey,
+                                    fontSize: 11,
+                                  ),
+                                ),
+                            ],
                           ),
                         ),
                       ],

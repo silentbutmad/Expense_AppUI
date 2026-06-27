@@ -272,6 +272,7 @@ class _TransactionCard extends StatelessWidget {
     final amount = parseAmount(transaction['amount']);
     final transactionType = transaction['transaction_type'] as String? ?? '';
     final category = transaction['category'] as String? ?? '';
+    final transactionCategory = transaction['transactionCategory'] as String? ?? '';
     final dateStr = transaction['transaction_date'] as String? ?? '';
     final paymentMode = transaction['payment_mode'] as String? ?? '';
 
@@ -286,29 +287,35 @@ class _TransactionCard extends StatelessWidget {
 
     Color typeColor;
     IconData typeIcon;
+    String typeLabel;
 
     switch (transactionType.toUpperCase()) {
       case 'INCOME':
         typeColor = Colors.green;
         typeIcon = Icons.arrow_downward;
+        typeLabel = 'Income';
         break;
       case 'EXPENSE':
         typeColor = Colors.red;
         typeIcon = Icons.arrow_upward;
+        typeLabel = 'Expense';
         break;
       case 'LOAN':
         final loanType = transaction['loan_type'] as String? ?? '';
         if (loanType == 'LENT') {
           typeColor = Colors.blue;
           typeIcon = Icons.account_balance_wallet;
+          typeLabel = 'Lent';
         } else {
           typeColor = Colors.orange;
           typeIcon = Icons.account_balance;
+          typeLabel = 'Borrow';
         }
         break;
       default:
         typeColor = Colors.grey;
         typeIcon = Icons.help;
+        typeLabel = transactionType.isEmpty ? 'Unknown' : transactionType;
     }
 
     return Card(
@@ -347,6 +354,20 @@ class _TransactionCard extends StatelessWidget {
                       category,
                       style: theme.textTheme.bodyLarge?.copyWith(
                         fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    if (transactionCategory.isNotEmpty)
+                      Text(
+                        transactionCategory,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: Colors.grey,
+                        ),
+                      ),
+                    Text(
+                      typeLabel,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: typeColor,
+                        fontWeight: FontWeight.w500,
                       ),
                     ),
                     const SizedBox(height: 4),

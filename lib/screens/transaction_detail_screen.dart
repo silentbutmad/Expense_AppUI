@@ -41,8 +41,6 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen> {
         tx['transaction_date'] as String? ?? tx['date'] as String? ?? '';
     final timeStr =
         tx['transaction_time'] as String? ?? tx['time'] as String? ?? '';
-    final transactionId = tx['_id'] as String? ?? tx['id'] as String? ?? 'N/A';
-
     DateTime? date;
     if (dateStr.isNotEmpty) {
       try {
@@ -176,8 +174,6 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen> {
                       _buildDetailRow(context, 'Time', timeStr)
                     else
                       _buildDetailRow(context, 'Time', 'N/A'),
-                    const Divider(),
-                    _buildDetailRow(context, 'Transaction ID', transactionId),
                   ],
                 ),
               ),
