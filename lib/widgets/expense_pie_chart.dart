@@ -1,5 +1,6 @@
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
+import 'package:myapp/utils/amount_parser.dart';
 import 'package:myapp/theme/app_tokens.dart';
 
 class ExpensePieChart extends StatelessWidget {
@@ -13,7 +14,7 @@ class ExpensePieChart extends StatelessWidget {
     final Map<String, double> dataMap = {};
     for (var tx in transactions) {
       final category = tx['category'] as String? ?? 'Other';
-      final amount = (tx['amount'] as num?)?.toDouble() ?? 0.0;
+      final amount = parseAmount(tx['amount']);
       dataMap[category] = (dataMap[category] ?? 0) + amount;
     }
 
@@ -32,7 +33,7 @@ class ExpensePieChart extends StatelessWidget {
     // Create pie chart sections from the data map
     final List<PieChartSectionData> sections = [];
     final totalExpenses = transactions.fold<double>(0.0, (sum, tx) {
-      final amount = (tx['amount'] as num?)?.toDouble() ?? 0.0;
+      final amount = parseAmount(tx['amount']);
       return sum + amount;
     });
 

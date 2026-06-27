@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:myapp/utils/amount_parser.dart';
 import 'package:myapp/providers/expense_provider.dart';
 import 'package:myapp/theme/app_tokens.dart';
 import 'package:provider/provider.dart';
@@ -23,7 +24,7 @@ class BudgetIndicator extends StatelessWidget {
           try {
             final date = DateTime.parse(dateStr);
             if (date.month == now.month && date.year == now.year) {
-              final amount = (tx['amount'] as num?)?.toDouble() ?? 0.0;
+              final amount = parseAmount(tx['amount']);
               final type = tx['transaction_type'] as String? ?? '';
               // Only count expenses (not income or loans)
               if (type == 'EXPENSE') {

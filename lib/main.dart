@@ -5,8 +5,6 @@ import 'package:myapp/firebase_options.dart';
 import 'package:myapp/providers/expense_provider.dart';
 import 'package:myapp/providers/theme_provider.dart';
 import 'package:myapp/screens/add_expense_screen.dart';
-import 'package:myapp/screens/add_income_screen.dart';
-import 'package:myapp/screens/expense_detail_screen.dart';
 import 'package:myapp/screens/forgot_password_screen.dart';
 import 'package:myapp/screens/home_screen.dart';
 import 'package:myapp/screens/login_screen.dart';
@@ -101,23 +99,12 @@ class _MyAppState extends State<MyApp> with RouteAware {
           },
         ),
         GoRoute(
-          path: '/add-income',
-          builder: (context, state) {
-            final isBusiness = state.extra as bool? ?? false;
-            return AddIncomeScreen(isBusiness: isBusiness);
-          },
-        ),
-        GoRoute(
           path: '/profile',
           builder: (context, state) => const ProfileScreen(),
         ),
         GoRoute(
           path: '/register',
           builder: (context, state) => const RegisterScreen(),
-        ),
-        GoRoute(
-          path: '/expense-details',
-          builder: (context, state) => const ExpenseDetailScreen(),
         ),
         GoRoute(
           path: '/forgot-password',

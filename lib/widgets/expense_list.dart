@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:myapp/utils/amount_parser.dart';
 import 'package:intl/intl.dart';
 
 class ExpenseList extends StatelessWidget {
@@ -40,7 +41,7 @@ class ExpenseList extends StatelessWidget {
         final tx = transactions[index];
         debugPrint('Transaction $index: $tx');
         
-        final amount = (tx['amount'] as num?)?.toDouble() ?? 0.0;
+        final amount = parseAmount(tx['amount']);
         final category = tx['category'] as String? ?? tx['name'] as String? ?? 'Unknown';
         final dateStr = tx['transaction_date'] as String? ?? '';
         final transactionTime = tx['transaction_time'] as String? ?? '';

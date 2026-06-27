@@ -370,9 +370,9 @@ class _PersonalTabContentState extends State<PersonalTabContent> with WidgetsBin
                 onNameTap: () {
                   final name = tx['name'] as String?;
                   if (name != null && name.isNotEmpty) {
-                    setState(() {
-                      _selectedPersonName = name;
-                    });
+                    context.push(
+                      '/person-transactions?name=${Uri.encodeComponent(name)}',
+                    );
                   }
                 },
               ),
@@ -926,3 +926,4 @@ class _CompactTransactionCard extends StatelessWidget {
     );
   }
 }
+

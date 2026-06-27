@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:myapp/utils/amount_parser.dart';
 import 'package:intl/intl.dart';
 import 'package:myapp/providers/expense_provider.dart';
 import 'package:provider/provider.dart';
@@ -105,9 +106,9 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
   }
 
   void _loadExistingTransaction(Map<String, dynamic> tx) {
-    final amount = tx['amount'] as num?;
-    if (amount != null) {
-      _amountController.text = amount.toString();
+    final rawAmount = tx['amount'];
+    if (rawAmount != null) {
+      _amountController.text = parseAmount(rawAmount).toString();
     }
     final name = tx['name'] as String?;
     if (name != null) {

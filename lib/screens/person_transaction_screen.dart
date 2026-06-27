@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:myapp/utils/amount_parser.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:myapp/providers/expense_provider.dart';
@@ -26,6 +27,7 @@ class _PersonTransactionScreenState extends State<PersonTransactionScreen> {
   Future<void> _loadTransactions() async {
     final provider = Provider.of<ExpenseProvider>(context, listen: false);
     await provider.fetchTransactionsByPerson(widget.personName);
+    await provider.fetchSummary();
   }
 
   @override
@@ -98,7 +100,7 @@ class _PersonTransactionScreenState extends State<PersonTransactionScreen> {
           double totalBorrow = 0.0;
 
           for (final tx in transactions) {
-            final amount = (tx['amount'] as num?)?.toDouble() ?? 0.0;
+            final amount = parseAmount(tx['amount']);
             final transactionType = tx['transaction_type'] as String?;
             final loanType = tx['loan_type'] as String?;
 
@@ -267,7 +269,7 @@ class _TransactionCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final amount = (transaction['amount'] as num?)?.toDouble() ?? 0.0;
+    final amount = parseAmount(transaction['amount']);
     final transactionType = transaction['transaction_type'] as String? ?? '';
     final category = transaction['category'] as String? ?? '';
     final dateStr = transaction['transaction_date'] as String? ?? '';

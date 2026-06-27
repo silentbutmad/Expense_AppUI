@@ -535,7 +535,10 @@ class ApiService with ChangeNotifier {
     if (response is List) {
       return response;
     } else if (response is Map<String, dynamic>) {
-      return List<dynamic>.from(response['transactions'] ?? []);
+      final transactions = response['transactions'] ?? response['data'];
+      if (transactions is List) {
+        return transactions;
+      }
     }
     return [];
   }
@@ -561,7 +564,10 @@ class ApiService with ChangeNotifier {
     if (response is List) {
       return response;
     } else if (response is Map<String, dynamic>) {
-      return List<dynamic>.from(response['transactions'] ?? []);
+      final transactions = response['transactions'] ?? response['data'];
+      if (transactions is List) {
+        return transactions;
+      }
     }
     return [];
   }
@@ -607,7 +613,10 @@ class ApiService with ChangeNotifier {
     if (response is List) {
       return response;
     } else if (response is Map<String, dynamic>) {
-      return List<dynamic>.from(response['transactions'] ?? []);
+      final transactions = response['transactions'] ?? response['data'];
+      if (transactions is List) {
+        return transactions;
+      }
     }
     return [];
   }

@@ -1,5 +1,6 @@
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
+import 'package:myapp/utils/amount_parser.dart';
 import 'package:intl/intl.dart';
 import 'package:myapp/providers/expense_provider.dart';
 import 'package:myapp/widgets/expense_list.dart';
@@ -73,7 +74,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
     double filteredTotalIncome = 0.0;
     
     for (final tx in filteredTransactions) {
-      final amount = (tx['amount'] as num?)?.toDouble() ?? 0.0;
+      final amount = parseAmount(tx['amount']);
       final type = tx['transaction_type'] as String? ?? '';
       
       if (type == 'INCOME') {
@@ -249,7 +250,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
       try {
         final date = DateTime.parse(dateStr);
         final day = formatter.format(date);
-        final amount = (tx['amount'] as num?)?.toDouble() ?? 0.0;
+        final amount = parseAmount(tx['amount']);
         dailyTotals[day] = (dailyTotals[day] ?? 0) + amount;
       } catch (e) {
         // Skip invalid dates

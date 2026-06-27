@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:myapp/utils/amount_parser.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:myapp/providers/expense_provider.dart';
@@ -24,16 +25,22 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen> {
     final textTheme = theme.textTheme;
     final tx = widget.transaction;
 
-    final amount = (tx['amount'] as num?)?.toDouble() ?? 0.0;
+    final amount = parseAmount(tx['amount']);
     final name = tx['name'] as String? ?? tx['personName'] as String? ?? 'N/A';
-    final email = tx['email'] as String? ?? 'N/A';
+    final email = tx['email'] as String? ?? tx['person_email'] as String? ?? 'N/A';
     final category = tx['category'] as String? ?? 'N/A';
     final remark = tx['remark'] as String? ?? 'N/A';
-    final paymentMode = tx['paymentMode'] as String? ?? 'N/A';
-    final transactionType = tx['transactionType'] as String? ?? 'N/A';
-    final loanType = tx['loanType'] as String? ?? 'N/A';
-    final dateStr = tx['date'] as String? ?? '';
-    final timeStr = tx['time'] as String? ?? '';
+    final paymentMode =
+        tx['payment_mode'] as String? ?? tx['paymentMode'] as String? ?? 'N/A';
+    final transactionType = tx['transaction_type'] as String? ??
+        tx['transactionType'] as String? ??
+        'N/A';
+    final loanType =
+        tx['loan_type'] as String? ?? tx['loanType'] as String? ?? 'N/A';
+    final dateStr =
+        tx['transaction_date'] as String? ?? tx['date'] as String? ?? '';
+    final timeStr =
+        tx['transaction_time'] as String? ?? tx['time'] as String? ?? '';
     final transactionId = tx['_id'] as String? ?? tx['id'] as String? ?? 'N/A';
 
     DateTime? date;
@@ -263,7 +270,7 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen> {
   }
 
   void _shareTransaction(Map<String, dynamic> tx) {
-    final amount = (tx['amount'] as num?)?.toDouble() ?? 0.0;
+    final amount = parseAmount(tx['amount']);
     final name = tx['name'] as String? ?? tx['personName'] as String? ?? 'N/A';
     final transactionType = tx['transactionType'] as String? ?? 'N/A';
     final category = tx['category'] as String? ?? 'N/A';
@@ -392,7 +399,7 @@ ${remark.isNotEmpty ? 'Remark : $remark' : ''}
   void _showReminderOptions(BuildContext context, Map<String, dynamic> tx) {
     final transactionId = tx['_id'] as String? ?? tx['id'] as String?;
     final name = tx['name'] as String? ?? tx['personName'] as String? ?? 'there';
-    final amount = (tx['amount'] as num?)?.toDouble() ?? 0.0;
+    final amount = parseAmount(tx['amount']);
     final dateStr = tx['date'] as String? ?? '';
 
     if (transactionId == null) {
