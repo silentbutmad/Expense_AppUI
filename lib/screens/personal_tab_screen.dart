@@ -279,13 +279,22 @@ class _PersonalTabContentState extends State<PersonalTabContent> with WidgetsBin
     ColorScheme colorScheme,
     List<Map<String, dynamic>> transactions,
   ) {
+    // Filter by selected person if needed
+    List<Map<String, dynamic>> displayTransactions = transactions;
+    if (_selectedPersonName != null) {
+      displayTransactions = transactions.where((tx) {
+        final name = tx['name'] as String? ?? '';
+        return name.toLowerCase() == _selectedPersonName!.toLowerCase();
+      }).toList();
+    }
+
     // Loading state
-    if (provider.isLoadingTransactions && transactions.isEmpty) {
+    if (provider.isLoadingTransactions && displayTransactions.isEmpty) {
       return const Center(child: CircularProgressIndicator());
     }
 
     // Error state
-    if (provider.errorMessage != null && transactions.isEmpty) {
+    if (provider.errorMessage != null && displayTransactions.isEmpty) {
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -308,7 +317,7 @@ class _PersonalTabContentState extends State<PersonalTabContent> with WidgetsBin
     }
 
     // Empty state
-    if (transactions.isEmpty && !provider.isLoadingTransactions) {
+    if (displayTransactions.isEmpty && !provider.isLoadingTransactions) {
       return ListView(
         children: [
           const SizedBox(height: 60),
@@ -318,16 +327,16 @@ class _PersonalTabContentState extends State<PersonalTabContent> with WidgetsBin
     }
 
     // Group transactions by date
-    final groupedTransactions = _groupByDate(transactions);
+    final groupedTransactions = _groupByDate(displayTransactions);
 
     // Transactions list with infinite scroll and date grouping
     return ListView.builder(
       controller: _scrollController,
       padding: const EdgeInsets.only(bottom: 16),
-      itemCount: groupedTransactions.length + (provider.hasMoreData ? 1 : 0),
+      itemCount: groupedTransactions.length + (provider.hasMoreData && _selectedPersonName == null ? 1 : 0),
       itemBuilder: (context, index) {
-        // Show loading indicator at bottom for pagination
-        if (index == groupedTransactions.length) {
+        // Show loading indicator at bottom for pagination (only when not filtering by person)
+        if (index == groupedTransactions.length && provider.hasMoreData && _selectedPersonName == null) {
           return const Padding(
             padding: EdgeInsets.all(16.0),
             child: Center(child: CircularProgressIndicator()),
@@ -355,6 +364,7 @@ class _PersonalTabContentState extends State<PersonalTabContent> with WidgetsBin
               (tx) => _CompactTransactionCard(
                 transaction: tx,
                 onTap: () {
+                  // Navigate to transaction detail screen
                   context.push('/transaction-detail', extra: tx);
                 },
                 onNameTap: () {
