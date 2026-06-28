@@ -2,6 +2,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:myapp/firebase_options.dart';
+import 'package:myapp/providers/business_provider.dart';
 import 'package:myapp/providers/expense_provider.dart';
 import 'package:myapp/providers/theme_provider.dart';
 import 'package:myapp/screens/add_expense_screen.dart';
@@ -23,6 +24,10 @@ import 'package:myapp/screens/ticket_details_screen.dart';
 import 'package:myapp/providers/support_provider.dart';
 import 'package:myapp/screens/success_screen.dart';
 import 'package:myapp/screens/transaction_detail_screen.dart';
+import 'package:myapp/screens/create_business_screen.dart';
+import 'package:myapp/screens/add_party_screen.dart';
+import 'package:myapp/screens/add_item_screen.dart';
+import 'package:myapp/screens/add_business_transaction_screen.dart';
 import 'package:myapp/theme/app_theme.dart';
 import 'package:provider/provider.dart';
 import 'package:myapp/services/api_service.dart';
@@ -122,6 +127,22 @@ class _MyAppState extends State<MyApp> with RouteAware {
           builder: (context, state) => const SettingsScreen(),
         ),
         GoRoute(
+          path: '/create-business',
+          builder: (context, state) => const CreateBusinessScreen(),
+        ),
+        GoRoute(
+          path: '/add-party',
+          builder: (context, state) => const AddPartyScreen(),
+        ),
+        GoRoute(
+          path: '/add-item',
+          builder: (context, state) => const AddItemScreen(),
+        ),
+        GoRoute(
+          path: '/add-business-transaction',
+          builder: (context, state) => const AddBusinessTransactionScreen(),
+        ),
+        GoRoute(
           path: '/help-support',
           builder: (context, state) => const HelpSupportScreen(),
         ),
@@ -181,6 +202,7 @@ class _MyAppState extends State<MyApp> with RouteAware {
       providers: [
         ChangeNotifierProvider(create: (_) => ThemeProvider()),
         ChangeNotifierProvider(create: (_) => ExpenseProvider(widget.apiService)),
+        ChangeNotifierProvider(create: (_) => BusinessProvider(widget.apiService)),
         ChangeNotifierProvider.value(value: widget.apiService),
         ChangeNotifierProvider.value(value: widget.supportProvider),
       ],

@@ -608,18 +608,59 @@ class ApiService with ChangeNotifier {
     return response;
   }
 
-  Future<List<dynamic>> getAllBusinessTransactions() async {
-    final response = await _get('/expenses/allBusinessTransactions');
-    if (response is List) {
-      return response;
-    } else if (response is Map<String, dynamic>) {
-      final transactions = response['transactions'] ?? response['data'];
-      if (transactions is List) {
-        return transactions;
-      }
-    }
-    return [];
+  // =========================
+  // BUSINESS MANAGEMENT APIs
+  // =========================
+
+  Future<Map<String, dynamic>> createBusiness(Map<String, dynamic> data) async {
+    final response = await _post('/expenses/createBusiness', body: data);
+    return response as Map<String, dynamic>;
   }
+
+  Future<dynamic> getAllBusinesses() async {
+    final response = await _get('/expenses/allBusiness');
+    return response;
+  }
+
+  // =========================
+  // CATALOG ITEM APIs
+  // =========================
+
+  Future<Map<String, dynamic>> createItem(Map<String, dynamic> data) async {
+    final response = await _post('/expenses/createItem', body: data);
+    return response as Map<String, dynamic>;
+  }
+
+  Future<dynamic> getAllItems(String businessId) async {
+    final response = await _get('/expenses/allItems?business_id=$businessId');
+    return response;
+  }
+
+  // =========================
+  // PARTY APIs
+  // =========================
+
+  Future<Map<String, dynamic>> createParty(Map<String, dynamic> data) async {
+    print(data);
+    final response = await _post('/expenses/createParty', body: data);
+    return response as Map<String, dynamic>;
+  }
+
+  Future<dynamic> getAllParties(String businessId) async {
+    final response = await _get('/expenses/allParties?business_id=$businessId');
+    return response;
+  }
+
+
+  Future<dynamic> getAllBusinessTransactions([Map<String, String>? params]) async {
+    String queryString = '';
+    if (params != null && params.isNotEmpty) {
+      queryString = '?${params.entries.map((e) => '${Uri.encodeComponent(e.key)}=${Uri.encodeComponent(e.value)}').join('&')}';
+    }
+    final response = await _get('/expenses/allBusinessTransactions$queryString');
+    return response;
+  }
+
 
   Future<Map<String, dynamic>> updateProfile(Map<String, dynamic> profileData) async {
     final response = await _put('/user/profile', body: profileData);
