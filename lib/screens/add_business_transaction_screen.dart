@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import 'package:myapp/models/business_models.dart';
 import 'package:myapp/providers/business_provider.dart';
 import 'package:provider/provider.dart';
+import 'package:dropdown_search/dropdown_search.dart';
 
 class LineItem {
   String? itemId;
@@ -32,48 +33,61 @@ class _AddBusinessTransactionScreenState extends State<AddBusinessTransactionScr
   List<LineItem> _items = [LineItem()];
   final _gstCtrl = TextEditingController(text: '18');
   double _gstPct = 18;
-  List<CatalogItemModel> _filteredItems = [];
-  List<PartyModel> _filteredParties = [];
-  final _partySearchCtrl = TextEditingController();
   final _titleCtrl = TextEditingController();
   final _descriptionCtrl = TextEditingController();
-  bool _showPartyDropdown = false;
+  final _amountCtrl = TextEditingController();
 
   @override void dispose() {
-    _gstCtrl.dispose(); _partySearchCtrl.dispose(); _titleCtrl.dispose(); _descriptionCtrl.dispose(); super.dispose();
+    _gstCtrl.dispose(); _titleCtrl.dispose(); _descriptionCtrl.dispose(); _amountCtrl.dispose(); super.dispose();
   }
 
-  double get _subtotal => _items.fold(0.0, (s, i) => s + i.total);
+  double get _subtotal => _txnType == 'EXPENSE' 
+      ? double.tryParse(_amountCtrl.text) ?? 0.0
+      : _items.fold(0.0, (s, i) => s + i.total);
   double get _totalGst => _subtotal * _gstPct / 100;
   double get _totalAmt => _subtotal + _totalGst;
 
+  // Get filtered parties based on transaction type
+  List<PartyModel> _getFilteredParties(List<PartyModel> allParties) {
+    if (_txnType == 'SALE') {
+      return allParties.where((p) => p.partyType == 'CUSTOMER').toList();
+    } else if (_txnType == 'PURCHASE') {
+      return allParties.where((p) => p.partyType == 'SUPPLIER').toList();
+    }
+    return allParties;
+  }
+
   void _addItem() => setState(() => _items.add(LineItem()));
-  void _removeItem(int i) { if (_items.length > 1) setState(() => _items.removeAt(i)); }
+  void _removeItem(int i) { 
+    if (_items.length > 1) setState(() => _items.removeAt(i)); 
+  }
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
-    for (int i = 0; i < _items.length; i++) {
-      if (_items[i].quantity <= 0 || _items[i].price <= 0) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Item ${i+1}: invalid qty/price')));
-        return;
-      }
-    }
+    
     final p = Provider.of<BusinessProvider>(context, listen: false);
     final b = p.selectedBusiness;
     if (b == null) return;
-    final success = await p.addBusinessTransaction({
+
+    Map<String, dynamic> transactionData = {
       'business_id': b.business_id,
-      if (_selParty != null) 'party_id': _selParty!.id,
       'transaction_type': _txnType,
       'transaction_date': DateFormat('yyyy-MM-dd').format(_txnDate),
       if (_dueDate != null) 'due_date': DateFormat('yyyy-MM-dd').format(_dueDate!),
-      'title': _titleCtrl.text.isEmpty ? null : _titleCtrl.text,
-      'description': _descriptionCtrl.text.isEmpty ? null : _descriptionCtrl.text,
-      'items': _items.map((e) => e.toJson()).toList(),
       'subtotal_amount': _subtotal,
       'total_gst_amount': _totalGst,
       'total_amount': _totalAmt,
-    });
+    };
+
+    if (_txnType == 'EXPENSE') {
+      transactionData['title'] = _titleCtrl.text;
+      transactionData['description'] = _descriptionCtrl.text.isEmpty ? null : _descriptionCtrl.text;
+    } else {
+      if (_selParty != null) transactionData['party_id'] = _selParty!.id;
+      transactionData['items'] = _items.map((e) => e.toJson()).toList();
+    }
+
+    final success = await p.addBusinessTransaction(transactionData);
     if (mounted) {
       if (success) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Transaction created!')));
@@ -91,6 +105,9 @@ class _AddBusinessTransactionScreenState extends State<AddBusinessTransactionScr
       appBar: AppBar(title: const Text('Add Transaction')),
       body: Consumer<BusinessProvider>(builder: (context, prov, _) {
         if (prov.selectedBusiness == null) return const Center(child: Text('Select a business first'));
+        
+        final filteredParties = _getFilteredParties(prov.parties);
+        
         return SingleChildScrollView(
           padding: const EdgeInsets.all(16),
           child: Form(key: _formKey, child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
@@ -130,9 +147,25 @@ class _AddBusinessTransactionScreenState extends State<AddBusinessTransactionScr
                 maxLines: 3,
               ),
               const SizedBox(height: 10),
-            ] else
-              _buildPartySelector(prov, t),
-            if (_txnType != 'EXPENSE') const SizedBox(height: 10),
+              TextFormField(
+                controller: _amountCtrl,
+                decoration: const InputDecoration(
+                  labelText: 'Amount (Rs)',
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.currency_rupee),
+                ),
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                validator: (v) {
+                  if (v?.isEmpty ?? true) return 'Enter amount';
+                  if (double.tryParse(v!) == null) return 'Invalid amount';
+                  return null;
+                },
+              ),
+              const SizedBox(height: 10),
+            ] else ...[
+              _buildPartyDropdown(prov, t, filteredParties),
+              const SizedBox(height: 10),
+            ],
             Row(children: [
               Expanded(child: _buildDateBtn('Date', _txnDate, (d) => setState(() => _txnDate=d))),
               const SizedBox(width: 8),
@@ -145,21 +178,21 @@ class _AddBusinessTransactionScreenState extends State<AddBusinessTransactionScr
                 TextButton.icon(onPressed: _addItem, icon: const Icon(Icons.add, size: 16), label: const Text('Add')),
               ]),
               ..._items.asMap().entries.map((e) => _buildItemCard(e.key, prov, t)),
+              const SizedBox(height: 10),
+              Row(children: [
+                const Text('GST %: '),
+                SizedBox(width: 70, child: TextFormField(
+                  controller: _gstCtrl,
+                  decoration: const InputDecoration(border: OutlineInputBorder(), isDense: true, contentPadding: EdgeInsets.symmetric(horizontal: 6, vertical: 6)),
+                  keyboardType: TextInputType.number,
+                  onChanged: (v) => setState(() => _gstPct = double.tryParse(v) ?? 0),
+                )),
+              ]),
+              const SizedBox(height: 8),
+              _sumRow('Subtotal', _subtotal),
+              _sumRow('GST ($_gstPct%)', _totalGst),
+              _sumRow('Total', _totalAmt, true),
             ],
-            const SizedBox(height: 10),
-            Row(children: [
-              const Text('GST %: '),
-              SizedBox(width: 70, child: TextFormField(
-                controller: _gstCtrl,
-                decoration: const InputDecoration(border: OutlineInputBorder(), isDense: true, contentPadding: EdgeInsets.symmetric(horizontal: 6, vertical: 6)),
-                keyboardType: TextInputType.number,
-                onChanged: (v) => setState(() => _gstPct = double.tryParse(v) ?? 0),
-              )),
-            ]),
-            const SizedBox(height: 8),
-            _sumRow('Subtotal', _subtotal),
-            _sumRow('GST ($_gstPct%)', _totalGst),
-            _sumRow('Total', _totalAmt, true),
             const SizedBox(height: 20),
             ElevatedButton(
               onPressed: prov.isSubmitting ? null : _submit,
@@ -174,67 +207,202 @@ class _AddBusinessTransactionScreenState extends State<AddBusinessTransactionScr
     );
   }
 
-  Widget _buildPartySelector(BusinessProvider prov, ThemeData t) {
-    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Text('Party', style: t.textTheme.labelMedium),
-      const SizedBox(height: 4),
-      TextField(
-        controller: _partySearchCtrl,
-        decoration: InputDecoration(
-          hintText: 'Search party...',
-          prefixIcon: const Icon(Icons.search, size: 20),
-          border: const OutlineInputBorder(),
-          suffixIcon: _selParty != null
-              ? IconButton(icon: const Icon(Icons.clear, size: 18), onPressed: () {
-                  setState(() { _selParty = null; _partySearchCtrl.clear(); });
-                })
-              : null,
+  Widget _buildPartyDropdown(
+  BusinessProvider prov,
+  ThemeData t,
+  List<PartyModel> parties,
+) {
+  return Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+
+      Text(
+        'Party',
+        style: t.textTheme.labelMedium?.copyWith(
+          fontWeight: FontWeight.w600,
+          color: Colors.black87,
         ),
-        onChanged: (v) {
-          setState(() {
-            _showPartyDropdown = v.isNotEmpty;
-            _filteredParties = prov.parties.where((p) => p.name.toLowerCase().contains(v.toLowerCase())).toList();
-          });
-        },
       ),
-      if (_selParty != null)
-        Padding(
-          padding: const EdgeInsets.only(top: 4),
-          child: Chip(
-            label: Text('${_selParty!.name} (${_selParty!.partyType})'),
-            deleteIcon: const Icon(Icons.close, size: 16),
-            onDeleted: () => setState(() { _selParty = null; _partySearchCtrl.clear(); }),
+
+      const SizedBox(height: 6),
+
+      DropdownSearch<PartyModel>(
+        selectedItem: _selParty,
+
+        items: (filter, infiniteScrollProps) async {
+          if (filter.isEmpty) {
+            return parties;
+          }
+
+          return parties.where((party) {
+            return party.name
+                .toLowerCase()
+                .contains(filter.toLowerCase());
+          }).toList();
+        },
+
+        compareFn: (a, b) => a.id == b.id,
+
+        itemAsString: (PartyModel party) => party.name,
+
+        popupProps: PopupProps.menu(
+          showSearchBox: true,
+          fit: FlexFit.loose,
+          constraints: const BoxConstraints(
+            maxHeight: 320,
           ),
+          menuProps: MenuProps(
+            borderRadius: BorderRadius.circular(14),
+            elevation: 8,
+            shadowColor: Colors.black26,
+          ),
+          searchFieldProps: TextFieldProps(
+            decoration: InputDecoration(
+              hintText: "Search party...",
+              hintStyle: TextStyle(color: Colors.grey.shade400),
+              prefixIcon: Icon(Icons.search, color: Colors.grey.shade500),
+              filled: true,
+              fillColor: Colors.grey.shade50,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: Colors.grey.shade300),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: Colors.grey.shade300),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: Theme.of(context).colorScheme.primary),
+              ),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 12,
+                vertical: 12,
+              ),
+            ),
+          ),
+          itemBuilder: (context, item, isDisabled, isSelected) {
+            return Container(
+              height: 54,
+              decoration: BoxDecoration(
+                border: Border(
+                  bottom: BorderSide(color: Colors.grey.shade200, width: 0.5),
+                ),
+              ),
+              child: ListTile(
+                dense: true,
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
+                leading: CircleAvatar(
+                  radius: 16,
+                  backgroundColor: item.partyType == "CUSTOMER"
+                      ? Colors.blue.shade50
+                      : Colors.orange.shade50,
+                  child: Icon(
+                    item.partyType == "CUSTOMER"
+                        ? Icons.person
+                        : Icons.business,
+                    size: 18,
+                    color: item.partyType == "CUSTOMER"
+                        ? Colors.blue
+                        : Colors.orange,
+                  ),
+                ),
+                title: Text(
+                  item.name,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                trailing: isSelected
+                    ? Icon(Icons.check, size: 18, color: Theme.of(context).colorScheme.primary)
+                    : null,
+              ),
+            );
+          },
+          emptyBuilder: (context, searchEntry) {
+            return const Padding(
+              padding: EdgeInsets.all(24),
+              child: Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.search_off, size: 36, color: Colors.grey),
+                    SizedBox(height: 8),
+                    Text(
+                      "No party found",
+                      style: TextStyle(color: Colors.grey, fontSize: 14),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
         ),
-      if (_showPartyDropdown && _filteredParties.isNotEmpty && _selParty == null)
-        Container(
-          decoration: BoxDecoration(border: Border.all(color: Colors.grey.shade300), borderRadius: BorderRadius.circular(8)),
-          constraints: const BoxConstraints(maxHeight: 150),
-          child: ListView.builder(
-            shrinkWrap: true,
-            itemCount: _filteredParties.length,
-            itemBuilder: (ctx, i) => ListTile(
-              dense: true,
-              title: Text(_filteredParties[i].name),
-              subtitle: Text(_filteredParties[i].partyType),
-              onTap: () {
-                setState(() {
-                  _selParty = _filteredParties[i];
-                  _showPartyDropdown = false;
-                  _partySearchCtrl.text = _filteredParties[i].name;
-                });
-              },
+
+        decoratorProps: DropDownDecoratorProps(
+          decoration: InputDecoration(
+            hintText: _txnType == "SALE"
+                ? "Select Consumer"
+                : "Select Supplier",
+
+            prefixIcon: const Icon(Icons.person),
+
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 12,
+              vertical: 14,
             ),
           ),
         ),
-      if (prov.parties.isEmpty)
-        TextButton.icon(
-          onPressed: () => Navigator.of(context).pushNamed('/add-party'),
-          icon: const Icon(Icons.add, size: 16),
-          label: const Text('Create New Party'),
+
+        onChanged: (PartyModel? party) {
+          setState(() {
+            _selParty = party;
+          });
+        },
+      ),
+
+      const SizedBox(height: 8),
+
+      InkWell(
+        onTap: () async {
+          final result =
+              await Navigator.of(context).pushNamed('/add-party');
+
+          if (result == true) {
+            await prov.fetchParties();
+          }
+        },
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 2),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.add,
+                size: 16,
+                color: Theme.of(context).colorScheme.primary,
+              ),
+              const SizedBox(width: 4),
+              Text(
+                'Create New Party',
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.primary,
+                  fontWeight: FontWeight.w500,
+                  fontSize: 13,
+                ),
+              ),
+            ],
+          ),
         ),
-    ]);
-  }
+      ),
+    ],
+  );
+}
 
   Widget _buildItemCard(int index, BusinessProvider prov, ThemeData t) {
     final item = _items[index];
@@ -248,33 +416,114 @@ class _AddBusinessTransactionScreenState extends State<AddBusinessTransactionScr
               onPressed: () => _removeItem(index), padding: EdgeInsets.zero, constraints: const BoxConstraints()),
         ]),
         const SizedBox(height: 6),
-        TextField(
-          decoration: InputDecoration(
-            hintText: 'Item name / Search catalog',
-            prefixIcon: const Icon(Icons.search, size: 20),
-            border: const OutlineInputBorder(), isDense: true,
+        DropdownSearch<CatalogItemModel>(
+          selectedItem: item.itemId != null ? CatalogItemModel(
+            id: item.itemId!,
+            businessId: '',
+            name: item.description,
+            price: item.price,
+            createdAt: DateTime.now(),
+            updatedAt: DateTime.now(),
+          ) : null,
+          items: (filter, infiniteScrollProps) async {
+            if (filter.isEmpty) {
+              return prov.catalogItems;
+            }
+            return prov.catalogItems.where((ci) {
+              return ci.name.toLowerCase().contains(filter.toLowerCase());
+            }).toList();
+          },
+          compareFn: (a, b) => a.id == b.id,
+          itemAsString: (CatalogItemModel ci) => ci.name,
+          popupProps: PopupProps.menu(
+            showSearchBox: true,
+            fit: FlexFit.loose,
+            searchFieldProps: TextFieldProps(
+              decoration: InputDecoration(
+                hintText: "Search item...",
+                prefixIcon: const Icon(Icons.search),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 14,
+                ),
+              ),
+            ),
+            itemBuilder: (context, ci, isDisabled, isSelected) {
+              return ListTile(
+                dense: true,
+                leading: const Icon(Icons.inventory_2, color: Colors.blue),
+                title: Text(ci.name),
+                subtitle: Text('Rs${ci.price.toStringAsFixed(2)}'),
+              );
+            },
+            emptyBuilder: (context, searchEntry) {
+              return const Padding(
+                padding: EdgeInsets.all(20),
+                child: Center(child: Text("No item found")),
+              );
+            },
           ),
-          onChanged: (v) {
+          decoratorProps: DropDownDecoratorProps(
+            decoration: InputDecoration(
+              hintText: 'Select Item',
+              prefixIcon: const Icon(Icons.inventory_2),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 12,
+                vertical: 14,
+              ),
+            ),
+          ),
+          onChanged: (value) {
             setState(() {
-              _filteredItems = prov.catalogItems.where((ci) => ci.name.toLowerCase().contains(v.toLowerCase())).toList();
-              item.description = v; item.itemId = null;
+              if (value != null) {
+                item.itemId = value.id;
+                item.description = value.name;
+                item.price = value.price;
+              } else {
+                item.itemId = null;
+                item.description = '';
+                item.price = 0.0;
+              }
             });
           },
         ),
-        if (_filteredItems.isNotEmpty && item.itemId == null)
-          Container(
-            decoration: BoxDecoration(border: Border.all(color: Colors.grey.shade300), borderRadius: BorderRadius.circular(8)),
-            constraints: const BoxConstraints(maxHeight: 120),
-            child: ListView.builder(shrinkWrap: true, itemCount: _filteredItems.length,
-              itemBuilder: (ctx, i) {
-                final ci = _filteredItems[i];
-                return ListTile(dense: true, title: Text(ci.name),
-                  subtitle: Text('Rs${ci.price.toStringAsFixed(2)}'),
-                  onTap: () { setState(() { item.itemId = ci.id; item.description = ci.name; item.price = ci.price; _filteredItems = []; }); },
-                );
-              },
+        const SizedBox(height: 8),
+        InkWell(
+          onTap: () async {
+            final result = await Navigator.of(context).pushNamed('/add-item');
+            if (result == true) {
+              await prov.fetchCatalogItems();
+            }
+          },
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 2),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.add,
+                  size: 16,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+                const SizedBox(width: 4),
+                Text(
+                  'Create New Item',
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.primary,
+                    fontWeight: FontWeight.w500,
+                    fontSize: 13,
+                  ),
+                ),
+              ],
             ),
           ),
+        ),
         const SizedBox(height: 6),
         Row(children: [
           Expanded(child: TextFormField(
@@ -284,12 +533,20 @@ class _AddBusinessTransactionScreenState extends State<AddBusinessTransactionScr
             onChanged: (v) => item.quantity = int.tryParse(v) ?? 0,
           )),
           const SizedBox(width: 8),
-          Expanded(child: TextFormField(
-            initialValue: item.price > 0 ? item.price.toStringAsFixed(2) : '',
-            decoration: const InputDecoration(labelText: 'Price', prefixText: 'Rs ', border: OutlineInputBorder(), isDense: true),
-            keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            onChanged: (v) => item.price = double.tryParse(v) ?? 0,
-          )),
+          Expanded(
+            child: TextFormField(
+              initialValue: item.price > 0 ? item.price.toStringAsFixed(2) : '',
+              decoration: const InputDecoration(
+                labelText: 'Price', 
+                prefixText: 'Rs ', 
+                border: OutlineInputBorder(), 
+                isDense: true,
+              ),
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              enabled: item.itemId == null,
+              onChanged: item.itemId != null ? null : (v) => item.price = double.tryParse(v) ?? 0,
+            ),
+          ),
         ]),
         Align(alignment: Alignment.centerRight,
           child: Text('Total: Rs${item.total.toStringAsFixed(2)}', style: t.textTheme.bodySmall?.copyWith(fontWeight: FontWeight.bold))),
