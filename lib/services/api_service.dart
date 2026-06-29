@@ -6,7 +6,7 @@ import 'package:myapp/utils/token_manager.dart';
 class ApiService with ChangeNotifier {
   // ✅ SINGLE BASE URL (NO DUPLICATION ANYWHERE)
   static const String _baseUrl =
-      'https://expense-api-gateway.onrender.com';
+      'https://expense-api-gateway-01kd.onrender.com';
 
   // Timeout configuration
   static const Duration _timeout = Duration(seconds: 30);

@@ -9,11 +9,15 @@ class LineItem {
   String description = '';
   int quantity = 1;
   double price = 0.0;
+  double gstRate = 18.0; // Default GST rate
   Map<String, dynamic> toJson() => {
     if (itemId != null) 'item_id': itemId,
     'description': description, 'quantity': quantity, 'price': price,
+    'gst_rate': gstRate,
   };
   double get total => quantity * price;
+  double get gstAmount => total * gstRate / 100;
+  double get totalWithGst => total + gstAmount;
 }
 
 class AddBusinessTransactionScreen extends StatefulWidget {
@@ -32,8 +36,12 @@ class _AddBusinessTransactionScreenState extends State<AddBusinessTransactionScr
   final List<LineItem> _items = [LineItem()];
   final Map<int, TextEditingController> _priceControllers = {};
   final Map<int, TextEditingController> _qtyControllers = {};
+  final Map<int, double> _itemGstRates = {}; // Per-item GST rates
   final _gstCtrl = TextEditingController(text: '18');
   double _gstPct = 18;
+  
+  // Available GST rates
+  static const List<double> _availableGstRates = [0, 5, 12, 18, 28];
   final _titleCtrl = TextEditingController();
   final _descriptionCtrl = TextEditingController();
   final _amountCtrl = TextEditingController();
@@ -63,7 +71,9 @@ class _AddBusinessTransactionScreenState extends State<AddBusinessTransactionScr
   double get _subtotal => _txnType == 'EXPENSE' 
       ? double.tryParse(_amountCtrl.text) ?? 0.0
       : _items.fold(0.0, (s, i) => s + i.total);
-  double get _totalGst => _subtotal * _gstPct / 100;
+  double get _totalGst => _txnType == 'EXPENSE' 
+      ? _subtotal * _gstPct / 100
+      : _items.fold(0.0, (s, i) => s + i.gstAmount);
   double get _totalAmt => _subtotal + _totalGst;
 
   // Get filtered parties based on transaction type
@@ -76,12 +86,42 @@ class _AddBusinessTransactionScreenState extends State<AddBusinessTransactionScr
     return allParties;
   }
 
+  void _resetForm() {
+    setState(() {
+      _txnType = 'SALE';
+      _txnDate = DateTime.now();
+      _txnTime = TimeOfDay.now();
+      _dueDate = null;
+      _selParty = null;
+      _items.clear();
+      _items.add(LineItem());
+      _gstPct = 18;
+      
+      _gstCtrl.text = '18';
+      _titleCtrl.clear();
+      _descriptionCtrl.clear();
+      _amountCtrl.clear();
+      
+      for (final controller in _priceControllers.values) {
+        controller.dispose();
+      }
+      for (final controller in _qtyControllers.values) {
+        controller.dispose();
+      }
+      _priceControllers.clear();
+      _qtyControllers.clear();
+      _priceControllers[0] = TextEditingController();
+      _qtyControllers[0] = TextEditingController(text: '1');
+    });
+  }
+
   void _addItem() {
     setState(() {
       final index = _items.length;
       _items.add(LineItem());
       _priceControllers[index] = TextEditingController();
       _qtyControllers[index] = TextEditingController(text: '1');
+      _itemGstRates[index] = 18.0; // Default GST rate for new item
     });
   }
   
@@ -93,6 +133,18 @@ class _AddBusinessTransactionScreenState extends State<AddBusinessTransactionScr
         _priceControllers.remove(i);
         _qtyControllers[i]?.dispose();
         _qtyControllers.remove(i);
+        _itemGstRates.remove(i);
+        // Reindex remaining GST rates
+        final newGstRates = <int, double>{};
+        int newIndex = 0;
+        for (int oldIndex = 0; oldIndex < _items.length; oldIndex++) {
+          if (oldIndex != i) {
+            newGstRates[newIndex] = _itemGstRates[oldIndex] ?? 18.0;
+            newIndex++;
+          }
+        }
+        _itemGstRates.clear();
+        _itemGstRates.addAll(newGstRates);
       });
     }
   }
@@ -182,7 +234,14 @@ class _AddBusinessTransactionScreenState extends State<AddBusinessTransactionScr
                 padding: const EdgeInsets.symmetric(horizontal: 2),
                 child: ChoiceChip(
                   label: Text(tx, style: TextStyle(fontSize: 11, color: _txnType==tx?Colors.white:null)),
-                  selected: _txnType==tx, onSelected: (_) => setState(() => _txnType=tx), selectedColor: c,
+                  selected: _txnType==tx, 
+                  onSelected: (_) {
+                    if (_txnType != tx) {
+                      _resetForm();
+                      setState(() => _txnType = tx);
+                    }
+                  }, 
+                  selectedColor: c,
                 ),
               ));
             }).toList()),
@@ -240,19 +299,23 @@ class _AddBusinessTransactionScreenState extends State<AddBusinessTransactionScr
               ]),
               ..._items.asMap().entries.map((e) => _buildItemCard(e.key, prov, t)),
               const SizedBox(height: 10),
-              Row(children: [
-                const Text('GST %: '),
-                SizedBox(width: 70, child: TextFormField(
-                  controller: _gstCtrl,
-                  decoration: const InputDecoration(border: OutlineInputBorder(), isDense: true, contentPadding: EdgeInsets.symmetric(horizontal: 6, vertical: 6)),
-                  keyboardType: TextInputType.number,
-                  onChanged: (v) => setState(() => _gstPct = double.tryParse(v) ?? 0),
-                )),
-              ]),
-              const SizedBox(height: 8),
-              _sumRow('Subtotal', _subtotal),
-              _sumRow('GST ($_gstPct%)', _totalGst),
-              _sumRow('Total', _totalAmt, true),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: const Color.fromARGB(255, 5, 4, 4),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.grey.shade200),
+                ),
+                child: Column(children: [
+                  _sumRow('Subtotal', _subtotal),
+                  const SizedBox(height: 4),
+                  ..._items.map((item) => _sumRow('  GST (${item.gstRate}%)', item.gstAmount)),
+                  const SizedBox(height: 4),
+                  _sumRow('Total GST', _totalGst),
+                  const Divider(height: 16),
+                  _sumRow('Total Amount', _totalAmt, true),
+                ]),
+              ),
             ],
             const SizedBox(height: 20),
             ElevatedButton(
@@ -271,8 +334,7 @@ class _AddBusinessTransactionScreenState extends State<AddBusinessTransactionScr
   Widget _buildPartyDropdown(
     BusinessProvider prov,
     ThemeData t,
-    List<PartyModel> parties,
-  ) {
+    List<PartyModel> parties,) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -374,8 +436,13 @@ class _AddBusinessTransactionScreenState extends State<AddBusinessTransactionScr
   Widget _buildItemCard(int index, BusinessProvider prov, ThemeData t) {
     final item = _items[index];
     
+    // Sync GST rate from state to model
+    if (_itemGstRates.containsKey(index)) {
+      item.gstRate = _itemGstRates[index]!;
+    }
+    
     // Debug: Show current state
-    debugPrint('ItemCard[$index]: itemId=${item.itemId}, name=${item.description}, price=${item.price}');
+    debugPrint('ItemCard[$index]: itemId=${item.itemId}, name=${item.description}, price=${item.price}, gst=${item.gstRate}');
     return Card(margin: const EdgeInsets.only(bottom: 8), child: Padding(
       padding: const EdgeInsets.all(10),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -490,7 +557,9 @@ class _AddBusinessTransactionScreenState extends State<AddBusinessTransactionScr
             decoration: const InputDecoration(labelText: 'Qty', border: OutlineInputBorder(), isDense: true),
             keyboardType: TextInputType.number,
             onChanged: (v) {
-              item.quantity = int.tryParse(v) ?? 0;
+              setState(() {
+                item.quantity = int.tryParse(v) ?? 0;
+              });
             },
           )),
           const SizedBox(width: 8),
@@ -506,10 +575,41 @@ class _AddBusinessTransactionScreenState extends State<AddBusinessTransactionScr
               keyboardType: const TextInputType.numberWithOptions(decimal: true),
               enabled: item.itemId == null,
               onChanged: item.itemId != null ? null : (v) {
-                item.price = double.tryParse(v) ?? 0;
+                setState(() {
+                  item.price = double.tryParse(v) ?? 0;
+                });
               },
             ),
           ),
+        ]),
+        const SizedBox(height: 6),
+        Row(children: [
+          const Text('GST: ', style: TextStyle(fontSize: 12)),
+          const SizedBox(width: 4),
+          ..._availableGstRates.map((rate) {
+            final isSelected = (_itemGstRates[index] ?? 18.0) == rate;
+            return Padding(
+              padding: const EdgeInsets.only(right: 4),
+              child: ChoiceChip(
+                label: Text('$rate%', style: const TextStyle(fontSize: 11)),
+                selected: isSelected,
+                onSelected: (_) {
+                  setState(() {
+                    _itemGstRates[index] = rate;
+                    item.gstRate = rate;
+                  });
+                },
+                selectedColor: Theme.of(context).colorScheme.primary,
+                labelStyle: TextStyle(
+                  color: isSelected ? Colors.white : null,
+                  fontSize: 11,
+                ),
+                padding: EdgeInsets.zero,
+                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                visualDensity: VisualDensity.compact,
+              ),
+            );
+          }).toList(),
         ]),
         Align(alignment: Alignment.centerRight,
           child: Text('Total: Rs${item.total.toStringAsFixed(2)}', style: t.textTheme.bodySmall?.copyWith(fontWeight: FontWeight.bold))),
