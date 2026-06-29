@@ -277,10 +277,24 @@ class BusinessProvider extends ChangeNotifier {
 
     try {
       final response = await _apiService.getAllItems(_selectedBusiness!.business_id);
+      print("bus pro");
       final data = response is List
           ? response
           : (response['data'] as List? ?? response['items'] as List? ?? []);
-      _catalogItems = data.map((json) => CatalogItemModel.fromJson(json)).toList();
+      
+      print("Raw API data: $data");
+      
+      _catalogItems = data.map((json) {
+        final item = CatalogItemModel.fromJson(json);
+        print("Parsed item: ${item.name}, price: ${item.price}");
+        return item;
+      }).toList();
+      
+      print("Total catalog items: ${_catalogItems.length}");
+      if (_catalogItems.isNotEmpty) {
+        print("First item: ${_catalogItems.first.name}, price: ${_catalogItems.first.price}");
+      }
+      
       _isLoadingItems = false;
       notifyListeners();
     } catch (e) {
@@ -288,6 +302,7 @@ class BusinessProvider extends ChangeNotifier {
       _errorMessage = e.toString();
       notifyListeners();
     }
+    
   }
 
   /// Create a new catalog item

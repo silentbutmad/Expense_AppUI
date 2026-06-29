@@ -641,7 +641,6 @@ class ApiService with ChangeNotifier {
   // =========================
 
   Future<Map<String, dynamic>> createParty(Map<String, dynamic> data) async {
-    print(data);
     final response = await _post('/expenses/createParty', body: data);
     return response as Map<String, dynamic>;
   }

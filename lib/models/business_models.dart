@@ -274,12 +274,26 @@ class CatalogItemModel {
   });
 
   factory CatalogItemModel.fromJson(Map<String, dynamic> json) {
+    // Debug logging
+    final priceValue = json['price'];
+    final priceType = priceValue?.runtimeType.toString() ?? 'null';
+    final isNum = priceValue is num;
+    final parsedPrice = isNum
+        ? (priceValue as num).toDouble()
+        : (priceValue is String ? double.tryParse(priceValue) ?? 0.0 : 0.0);
+
+    print('CatalogItemModel parsing:');
+    print('  Raw price value: $priceValue');
+    print('  Price type: $priceType');
+    print('  Is num: $isNum');
+    print('  Parsed price: $parsedPrice');
+
     return CatalogItemModel(
       id: json['item_id'] ?? json['id'] ?? '',
       businessId: json['business_id'] ?? '',
       name: json['name'] ?? json['item_name'] ?? '',
       description: json['description'],
-      price: (json['price'] is num) ? (json['price'] as num).toDouble() : 0.0,
+      price: parsedPrice,
       unit: json['unit'],
       hsnCode: json['hsn_code'] ?? json['hsnCode'],
       createdAt: json['created_at'] != null

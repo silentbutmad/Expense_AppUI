@@ -200,7 +200,7 @@ class _BusinessTabContentState extends State<BusinessTabContent> with WidgetsBin
                     child: _buildEmptyState(theme),
                   )
                 else
-                  _buildTransactionSlivers(provider, theme, colorScheme),
+                  ..._buildTransactionSlivers(provider, theme, colorScheme),
 
                 // Loading more indicator
                 if (provider.isLoadingMore)
@@ -310,7 +310,7 @@ class _BusinessTabContentState extends State<BusinessTabContent> with WidgetsBin
     );
   }
 
-  Widget _buildTransactionSlivers(
+  List<Widget> _buildTransactionSlivers(
     BusinessProvider provider,
     ThemeData theme,
     ColorScheme colorScheme,
@@ -374,8 +374,6 @@ class _BusinessTabContentState extends State<BusinessTabContent> with WidgetsBin
       );
     }
 
-    return SliverList(
-      delegate: SliverChildListDelegate(slivers),
-    );
+    return slivers;
   }
 }

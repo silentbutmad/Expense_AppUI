@@ -22,16 +22,18 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
-    _restoreLastBusiness();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _restoreLastBusiness());
   }
 
   Future<void> _restoreLastBusiness() async {
     final businessProvider = Provider.of<BusinessProvider>(context, listen: false);
     await businessProvider.fetchBusinesses();
     await businessProvider.restoreLastSelectedBusiness();
-    setState(() {
-      _isInitialized = true;
-    });
+    if (mounted) {
+      setState(() {
+        _isInitialized = true;
+      });
+    }
   }
 
   void _onItemTapped(int index) {

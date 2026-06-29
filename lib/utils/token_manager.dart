@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
+
 class TokenManager {
   static const _storage = FlutterSecureStorage(
     aOptions: AndroidOptions(
@@ -26,7 +27,7 @@ class TokenManager {
     await _storage.write(key: _accessTokenKey, value: accessToken);
     await _storage.write(key: _refreshTokenKey, value: refreshToken);
     if (userData != null) {
-      await _storage.write(key: _userDataKey, value: userData.toString());
+      await _storage.write(key: _userDataKey, value: jsonEncode(userData));
     }
   }
 

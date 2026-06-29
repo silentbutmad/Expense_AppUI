@@ -3,7 +3,6 @@ import 'package:intl/intl.dart';
 import 'package:myapp/models/business_models.dart';
 import 'package:myapp/providers/business_provider.dart';
 import 'package:provider/provider.dart';
-import 'package:dropdown_search/dropdown_search.dart';
 
 class LineItem {
   String? itemId;
@@ -30,15 +29,35 @@ class _AddBusinessTransactionScreenState extends State<AddBusinessTransactionScr
   TimeOfDay _txnTime = TimeOfDay.now();
   DateTime? _dueDate;
   PartyModel? _selParty;
-  List<LineItem> _items = [LineItem()];
+  final List<LineItem> _items = [LineItem()];
+  final Map<int, TextEditingController> _priceControllers = {};
+  final Map<int, TextEditingController> _qtyControllers = {};
   final _gstCtrl = TextEditingController(text: '18');
   double _gstPct = 18;
   final _titleCtrl = TextEditingController();
   final _descriptionCtrl = TextEditingController();
   final _amountCtrl = TextEditingController();
 
-  @override void dispose() {
-    _gstCtrl.dispose(); _titleCtrl.dispose(); _descriptionCtrl.dispose(); _amountCtrl.dispose(); super.dispose();
+  @override 
+  void initState() {
+    super.initState();
+    _priceControllers[0] = TextEditingController();
+    _qtyControllers[0] = TextEditingController(text: '1');
+  }
+  
+  @override 
+  void dispose() {
+    _gstCtrl.dispose(); 
+    _titleCtrl.dispose(); 
+    _descriptionCtrl.dispose(); 
+    _amountCtrl.dispose();
+    for (final controller in _priceControllers.values) {
+      controller.dispose();
+    }
+    for (final controller in _qtyControllers.values) {
+      controller.dispose();
+    }
+    super.dispose();
   }
 
   double get _subtotal => _txnType == 'EXPENSE' 
@@ -57,9 +76,25 @@ class _AddBusinessTransactionScreenState extends State<AddBusinessTransactionScr
     return allParties;
   }
 
-  void _addItem() => setState(() => _items.add(LineItem()));
+  void _addItem() {
+    setState(() {
+      final index = _items.length;
+      _items.add(LineItem());
+      _priceControllers[index] = TextEditingController();
+      _qtyControllers[index] = TextEditingController(text: '1');
+    });
+  }
+  
   void _removeItem(int i) { 
-    if (_items.length > 1) setState(() => _items.removeAt(i)); 
+    if (_items.length > 1) {
+      setState(() {
+        _items.removeAt(i);
+        _priceControllers[i]?.dispose();
+        _priceControllers.remove(i);
+        _qtyControllers[i]?.dispose();
+        _qtyControllers.remove(i);
+      });
+    }
   }
 
   Future<void> _submit() async {
@@ -96,6 +131,32 @@ class _AddBusinessTransactionScreenState extends State<AddBusinessTransactionScr
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(p.errorMessage ?? 'Failed')));
       }
     }
+  }
+
+  // --- REUSABLE SEARCHABLE BOTTOM SHEET ---
+  Future<T?> _showSearchablePicker<T>({
+    required String title,
+    required List<T> items,
+    required String Function(T) itemAsString,
+    required Widget Function(T, bool) itemBuilder,
+    T? selectedItem,
+  }) {
+    return showModalBottomSheet<T>(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (context) {
+        return _SearchableListWidget<T>(
+          title: title,
+          items: items,
+          itemAsString: itemAsString,
+          itemBuilder: itemBuilder,
+          selectedItem: selectedItem,
+        );
+      },
+    );
   }
 
   @override
@@ -208,204 +269,113 @@ class _AddBusinessTransactionScreenState extends State<AddBusinessTransactionScr
   }
 
   Widget _buildPartyDropdown(
-  BusinessProvider prov,
-  ThemeData t,
-  List<PartyModel> parties,
-) {
-  return Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-
-      Text(
-        'Party',
-        style: t.textTheme.labelMedium?.copyWith(
-          fontWeight: FontWeight.w600,
-          color: Colors.black87,
+    BusinessProvider prov,
+    ThemeData t,
+    List<PartyModel> parties,
+  ) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Party',
+          style: t.textTheme.labelMedium?.copyWith(
+            fontWeight: FontWeight.w600,
+            color: Colors.black87,
+          ),
         ),
-      ),
+        const SizedBox(height: 6),
+        InkWell(
+          borderRadius: BorderRadius.circular(12),
+          onTap: () async {
+            final selected = await _showSearchablePicker<PartyModel>(
+              title: _txnType == "SALE" ? "Select Consumer" : "Select Supplier",
+              items: parties,
+              selectedItem: _selParty,
+              itemAsString: (party) => party.name,
+              itemBuilder: (item, isSelected) {
+                return ListTile(
+                  dense: true,
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                  leading: CircleAvatar(
+                    radius: 16,
+                    backgroundColor: item.partyType == "CUSTOMER" ? Colors.blue.shade50 : Colors.orange.shade50,
+                    child: Icon(
+                      item.partyType == "CUSTOMER" ? Icons.person : Icons.business,
+                      size: 18,
+                      color: item.partyType == "CUSTOMER" ? Colors.blue : Colors.orange,
+                    ),
+                  ),
+                  title: Text(
+                    item.name,
+                    style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+                  ),
+                  trailing: isSelected ? Icon(Icons.check, size: 18, color: Theme.of(context).colorScheme.primary) : null,
+                );
+              },
+            );
 
-      const SizedBox(height: 6),
-
-      DropdownSearch<PartyModel>(
-        selectedItem: _selParty,
-
-        items: (filter, infiniteScrollProps) async {
-          if (filter.isEmpty) {
-            return parties;
-          }
-
-          return parties.where((party) {
-            return party.name
-                .toLowerCase()
-                .contains(filter.toLowerCase());
-          }).toList();
-        },
-
-        compareFn: (a, b) => a.id == b.id,
-
-        itemAsString: (PartyModel party) => party.name,
-
-        popupProps: PopupProps.menu(
-          showSearchBox: true,
-          fit: FlexFit.loose,
-          constraints: const BoxConstraints(
-            maxHeight: 320,
-          ),
-          menuProps: MenuProps(
-            borderRadius: BorderRadius.circular(14),
-            elevation: 8,
-            shadowColor: Colors.black26,
-          ),
-          searchFieldProps: TextFieldProps(
+            if (selected != null) {
+              setState(() {
+                _selParty = selected;
+              });
+            }
+          },
+          child: InputDecorator(
             decoration: InputDecoration(
-              hintText: "Search party...",
-              hintStyle: TextStyle(color: Colors.grey.shade400),
-              prefixIcon: Icon(Icons.search, color: Colors.grey.shade500),
-              filled: true,
-              fillColor: Colors.grey.shade50,
+              prefixIcon: const Icon(Icons.person),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(color: Colors.grey.shade300),
               ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(color: Colors.grey.shade300),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(color: Theme.of(context).colorScheme.primary),
-              ),
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 12,
-                vertical: 12,
-              ),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
             ),
+            isEmpty: _selParty == null,
+            child: _selParty == null 
+              ? Text(
+                  _txnType == "SALE" ? "Select Consumer" : "Select Supplier",
+                  style: TextStyle(color: Colors.grey.shade600, fontSize: 16),
+                )
+              : Text(
+                  _selParty!.name,
+                  style: const TextStyle(fontSize: 16),
+                ),
           ),
-          itemBuilder: (context, item, isDisabled, isSelected) {
-            return Container(
-              height: 54,
-              decoration: BoxDecoration(
-                border: Border(
-                  bottom: BorderSide(color: Colors.grey.shade200, width: 0.5),
-                ),
-              ),
-              child: ListTile(
-                dense: true,
-                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
-                leading: CircleAvatar(
-                  radius: 16,
-                  backgroundColor: item.partyType == "CUSTOMER"
-                      ? Colors.blue.shade50
-                      : Colors.orange.shade50,
-                  child: Icon(
-                    item.partyType == "CUSTOMER"
-                        ? Icons.person
-                        : Icons.business,
-                    size: 18,
-                    color: item.partyType == "CUSTOMER"
-                        ? Colors.blue
-                        : Colors.orange,
-                  ),
-                ),
-                title: Text(
-                  item.name,
-                  style: const TextStyle(
-                    fontSize: 14,
+        ),
+        const SizedBox(height: 8),
+        InkWell(
+          onTap: () async {
+            final result = await Navigator.of(context).pushNamed('/add-party');
+            if (result == true) {
+              await prov.fetchParties();
+            }
+          },
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 2),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.add, size: 16, color: Theme.of(context).colorScheme.primary),
+                const SizedBox(width: 4),
+                Text(
+                  'Create New Party',
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.primary,
                     fontWeight: FontWeight.w500,
+                    fontSize: 13,
                   ),
                 ),
-                trailing: isSelected
-                    ? Icon(Icons.check, size: 18, color: Theme.of(context).colorScheme.primary)
-                    : null,
-              ),
-            );
-          },
-          emptyBuilder: (context, searchEntry) {
-            return const Padding(
-              padding: EdgeInsets.all(24),
-              child: Center(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.search_off, size: 36, color: Colors.grey),
-                    SizedBox(height: 8),
-                    Text(
-                      "No party found",
-                      style: TextStyle(color: Colors.grey, fontSize: 14),
-                    ),
-                  ],
-                ),
-              ),
-            );
-          },
-        ),
-
-        decoratorProps: DropDownDecoratorProps(
-          decoration: InputDecoration(
-            hintText: _txnType == "SALE"
-                ? "Select Consumer"
-                : "Select Supplier",
-
-            prefixIcon: const Icon(Icons.person),
-
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 12,
-              vertical: 14,
+              ],
             ),
           ),
         ),
-
-        onChanged: (PartyModel? party) {
-          setState(() {
-            _selParty = party;
-          });
-        },
-      ),
-
-      const SizedBox(height: 8),
-
-      InkWell(
-        onTap: () async {
-          final result =
-              await Navigator.of(context).pushNamed('/add-party');
-
-          if (result == true) {
-            await prov.fetchParties();
-          }
-        },
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 2),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                Icons.add,
-                size: 16,
-                color: Theme.of(context).colorScheme.primary,
-              ),
-              const SizedBox(width: 4),
-              Text(
-                'Create New Party',
-                style: TextStyle(
-                  color: Theme.of(context).colorScheme.primary,
-                  fontWeight: FontWeight.w500,
-                  fontSize: 13,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    ],
-  );
-}
+      ],
+    );
+  }
 
   Widget _buildItemCard(int index, BusinessProvider prov, ThemeData t) {
     final item = _items[index];
+    
+    // Debug: Show current state
+    debugPrint('ItemCard[$index]: itemId=${item.itemId}, name=${item.description}, price=${item.price}');
     return Card(margin: const EdgeInsets.only(bottom: 8), child: Padding(
       padding: const EdgeInsets.all(10),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -416,82 +386,75 @@ class _AddBusinessTransactionScreenState extends State<AddBusinessTransactionScr
               onPressed: () => _removeItem(index), padding: EdgeInsets.zero, constraints: const BoxConstraints()),
         ]),
         const SizedBox(height: 6),
-        DropdownSearch<CatalogItemModel>(
-          selectedItem: item.itemId != null ? CatalogItemModel(
-            id: item.itemId!,
-            businessId: '',
-            name: item.description,
-            price: item.price,
-            createdAt: DateTime.now(),
-            updatedAt: DateTime.now(),
-          ) : null,
-          items: (filter, infiniteScrollProps) async {
-            if (filter.isEmpty) {
-              return prov.catalogItems;
+        InkWell(
+          borderRadius: BorderRadius.circular(12),
+          onTap: () async {
+            // Find current selected item if it exists
+            CatalogItemModel? currentItem;
+            if (item.itemId != null) {
+              try {
+                currentItem = prov.catalogItems.firstWhere((e) => e.id == item.itemId);
+              } catch (_) {}
             }
-            return prov.catalogItems.where((ci) {
-              return ci.name.toLowerCase().contains(filter.toLowerCase());
-            }).toList();
+
+            // Debug: Log catalog items before showing picker
+            debugPrint('Showing picker with ${prov.catalogItems.length} items');
+            for (var i = 0; i < prov.catalogItems.length; i++) {
+              final ci = prov.catalogItems[i];
+              debugPrint('  Item $i: ${ci.name}, price: ${ci.price}');
+            }
+            
+            final selected = await _showSearchablePicker<CatalogItemModel>(
+              title: 'Select Item',
+              items: prov.catalogItems,
+              selectedItem: currentItem,
+              itemAsString: (ci) => ci.name,
+              itemBuilder: (ci, isSelected) {
+                // Debug: Log each item as it's built
+                debugPrint('Building picker item: ${ci.name}, price: ${ci.price}');
+                return ListTile(
+                  dense: true,
+                  leading: const Icon(Icons.inventory_2, color: Colors.blue),
+                  title: Text(ci.name),
+                  subtitle: Text('Rs${ci.price.toStringAsFixed(2)}'),
+                  trailing: isSelected ? Icon(Icons.check, size: 18, color: Theme.of(context).colorScheme.primary) : null,
+                );
+              },
+            );
+
+            if (selected != null) {
+              setState(() {
+                item.itemId = selected.id;
+                item.description = selected.name;
+                item.price = selected.price;
+                // Update the price controller to show the selected price
+                if (_priceControllers[index] != null) {
+                  _priceControllers[index]!.text = selected.price.toStringAsFixed(2);
+                } else {
+                  _priceControllers[index] = TextEditingController(text: selected.price.toStringAsFixed(2));
+                }
+              });
+            }
           },
-          compareFn: (a, b) => a.id == b.id,
-          itemAsString: (CatalogItemModel ci) => ci.name,
-          popupProps: PopupProps.menu(
-            showSearchBox: true,
-            fit: FlexFit.loose,
-            searchFieldProps: TextFieldProps(
-              decoration: InputDecoration(
-                hintText: "Search item...",
-                prefixIcon: const Icon(Icons.search),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 14,
-                ),
-              ),
-            ),
-            itemBuilder: (context, ci, isDisabled, isSelected) {
-              return ListTile(
-                dense: true,
-                leading: const Icon(Icons.inventory_2, color: Colors.blue),
-                title: Text(ci.name),
-                subtitle: Text('Rs${ci.price.toStringAsFixed(2)}'),
-              );
-            },
-            emptyBuilder: (context, searchEntry) {
-              return const Padding(
-                padding: EdgeInsets.all(20),
-                child: Center(child: Text("No item found")),
-              );
-            },
-          ),
-          decoratorProps: DropDownDecoratorProps(
+          child: InputDecorator(
             decoration: InputDecoration(
-              hintText: 'Select Item',
               prefixIcon: const Icon(Icons.inventory_2),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
               ),
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 12,
-                vertical: 14,
-              ),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
             ),
+            isEmpty: item.itemId == null,
+            child: item.itemId == null 
+              ? Text(
+                  "Select Item",
+                  style: TextStyle(color: Colors.grey.shade600, fontSize: 16),
+                )
+              : Text(
+                  item.description,
+                  style: const TextStyle(fontSize: 16),
+                ),
           ),
-          onChanged: (value) {
-            setState(() {
-              if (value != null) {
-                item.itemId = value.id;
-                item.description = value.name;
-                item.price = value.price;
-              } else {
-                item.itemId = null;
-                item.description = '';
-                item.price = 0.0;
-              }
-            });
-          },
         ),
         const SizedBox(height: 8),
         InkWell(
@@ -506,11 +469,7 @@ class _AddBusinessTransactionScreenState extends State<AddBusinessTransactionScr
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(
-                  Icons.add,
-                  size: 16,
-                  color: Theme.of(context).colorScheme.primary,
-                ),
+                Icon(Icons.add, size: 16, color: Theme.of(context).colorScheme.primary),
                 const SizedBox(width: 4),
                 Text(
                   'Create New Item',
@@ -527,15 +486,17 @@ class _AddBusinessTransactionScreenState extends State<AddBusinessTransactionScr
         const SizedBox(height: 6),
         Row(children: [
           Expanded(child: TextFormField(
-            initialValue: item.quantity.toString(),
+            controller: _qtyControllers[index],
             decoration: const InputDecoration(labelText: 'Qty', border: OutlineInputBorder(), isDense: true),
             keyboardType: TextInputType.number,
-            onChanged: (v) => item.quantity = int.tryParse(v) ?? 0,
+            onChanged: (v) {
+              item.quantity = int.tryParse(v) ?? 0;
+            },
           )),
           const SizedBox(width: 8),
           Expanded(
             child: TextFormField(
-              initialValue: item.price > 0 ? item.price.toStringAsFixed(2) : '',
+              controller: _priceControllers[index],
               decoration: const InputDecoration(
                 labelText: 'Price', 
                 prefixText: 'Rs ', 
@@ -544,7 +505,9 @@ class _AddBusinessTransactionScreenState extends State<AddBusinessTransactionScr
               ),
               keyboardType: const TextInputType.numberWithOptions(decimal: true),
               enabled: item.itemId == null,
-              onChanged: item.itemId != null ? null : (v) => item.price = double.tryParse(v) ?? 0,
+              onChanged: item.itemId != null ? null : (v) {
+                item.price = double.tryParse(v) ?? 0;
+              },
             ),
           ),
         ]),
@@ -601,6 +564,135 @@ class _AddBusinessTransactionScreenState extends State<AddBusinessTransactionScr
         Text(label, style: TextStyle(fontWeight: bold ? FontWeight.bold : FontWeight.normal)),
         Text('Rs${amount.toStringAsFixed(2)}', style: TextStyle(fontWeight: bold ? FontWeight.bold : FontWeight.normal)),
       ]),
+    );
+  }
+}
+
+// --- SEARCHABLE LIST BOTTOM SHEET WIDGET ---
+class _SearchableListWidget<T> extends StatefulWidget {
+  final String title;
+  final List<T> items;
+  final String Function(T) itemAsString;
+  final Widget Function(T, bool) itemBuilder;
+  final T? selectedItem;
+
+  const _SearchableListWidget({
+    required this.title,
+    required this.items,
+    required this.itemAsString,
+    required this.itemBuilder,
+    this.selectedItem,
+  });
+
+  @override
+  State<_SearchableListWidget<T>> createState() => _SearchableListWidgetState<T>();
+}
+
+class _SearchableListWidgetState<T> extends State<_SearchableListWidget<T>> {
+  late List<T> filteredItems;
+  final TextEditingController _searchCtrl = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    filteredItems = widget.items;
+  }
+
+  @override
+  void dispose() {
+    _searchCtrl.dispose();
+    super.dispose();
+  }
+
+  void _filter(String query) {
+    setState(() {
+      if (query.isEmpty) {
+        filteredItems = widget.items;
+      } else {
+        filteredItems = widget.items.where((item) {
+          return widget.itemAsString(item).toLowerCase().contains(query.toLowerCase());
+        }).toList();
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // Ensures the bottom sheet avoids the keyboard
+    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+    
+    return Container(
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.of(context).size.height * 0.75,
+      ),
+      padding: EdgeInsets.only(bottom: bottomInset),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Header
+          Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  widget.title,
+                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.close),
+                  onPressed: () => Navigator.of(context).pop(),
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                ),
+              ],
+            ),
+          ),
+          
+          // Search Bar
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16.0),
+            child: TextField(
+              controller: _searchCtrl,
+              decoration: InputDecoration(
+                hintText: "Search...",
+                prefixIcon: const Icon(Icons.search),
+                filled: true,
+                fillColor: Colors.grey.shade100,
+                contentPadding: const EdgeInsets.symmetric(vertical: 0),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide.none,
+                ),
+              ),
+              onChanged: _filter,
+            ),
+          ),
+          const SizedBox(height: 8),
+          
+          // List
+          Expanded(
+            child: filteredItems.isEmpty
+              ? const Center(child: Text("No items found", style: TextStyle(color: Colors.grey)))
+              : ListView.separated(
+                  itemCount: filteredItems.length,
+                  separatorBuilder: (context, index) => Divider(height: 1, color: Colors.grey.shade200),
+                  itemBuilder: (context, index) {
+                    final item = filteredItems[index];
+                    // Compare using the string representation for simplicity, or identity if T supports it.
+                    final isSelected = widget.selectedItem != null && item == widget.selectedItem; 
+                    
+                    return InkWell(
+                      onTap: () {
+                        Navigator.of(context).pop(item);
+                      },
+                      child: widget.itemBuilder(item, isSelected),
+                    );
+                  },
+                ),
+          ),
+        ],
+      ),
     );
   }
 }
