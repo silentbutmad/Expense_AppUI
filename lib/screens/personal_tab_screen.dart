@@ -28,7 +28,10 @@ class _PersonalTabContentState extends State<PersonalTabContent> with WidgetsBin
     super.didChangeDependencies();
     // Refresh when returning to this screen
     if (!_isFirstBuild) {
-      _loadData();
+      // Use post frame callback to avoid setState during build
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _loadData();
+      });
     }
     _isFirstBuild = false;
   }
@@ -734,8 +737,9 @@ class _CompactTransactionCard extends StatelessWidget {
     if (dateStr.isNotEmpty) {
       try {
         date = DateTime.parse(dateStr);
-        // Use transaction_time field if available, otherwise extract from date
-        final transactionTime = transaction['transaction_time'] as String?;
+        // Use __transaction_time field if available, fallback to transaction_time, otherwise extract from date
+        final transactionTime = transaction['__transaction_time'] as String? ??
+                               transaction['transaction_time'] as String?;
         if (transactionTime != null && transactionTime.isNotEmpty) {
           timeStr = transactionTime;
         } else {

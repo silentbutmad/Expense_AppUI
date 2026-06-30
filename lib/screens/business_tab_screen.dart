@@ -232,7 +232,11 @@ class _BusinessTabContentState extends State<BusinessTabContent> with WidgetsBin
       displayTransactions = displayTransactions.where((tx) {
         final category = tx['category'] as String? ?? '';
         final remark = tx['remark'] as String? ?? '';
-        final partyName = tx['party']?['name'] as String? ?? tx['party_name'] as String? ?? '';
+        final transactionType = tx['transaction_type'] as String? ?? '';
+        final isExpense = transactionType.toUpperCase() == 'EXPENSE';
+        final partyName = isExpense
+            ? (tx['title'] as String? ?? tx['description'] as String? ?? '')
+            : (tx['party']?['name'] as String? ?? tx['party_name'] as String? ?? '');
         final itemNames = (tx['items'] as List?)?.map((item) => item['description'] as String? ?? '').join(' ') ?? '';
         final query = _currentSearchQuery.toLowerCase();
         return category.toLowerCase().contains(query) ||
@@ -249,7 +253,8 @@ class _BusinessTabContentState extends State<BusinessTabContent> with WidgetsBin
     double totalSales = 0.0;
     double totalPurchases = 0.0;
     double totalExpenses = 0.0;
-    for (final tx in provider.businessTransactions) {
+    final filteredTxs = _filteredTransactions(provider);
+    for (final tx in filteredTxs) {
       final amount = parseAmount(tx['total_amount'] ?? tx['amount']);
       final type = tx['transaction_type'] as String? ?? '';
       if (type == 'SALE') {
@@ -348,9 +353,13 @@ class _BusinessTabContentState extends State<BusinessTabContent> with WidgetsBin
                     context.push('/transaction-detail', extra: tx);
                   },
                   onNameTap: () {
-                    final partyName = tx['party']?['name'] as String? ?? tx['party_name'] as String? ?? '';
-                    if (partyName.isNotEmpty) {
-                      // Navigate to party transactions if needed
+                    final transactionType = tx['transaction_type'] as String? ?? '';
+                    final isExpense = transactionType.toUpperCase() == 'EXPENSE';
+                    final displayName = isExpense
+                        ? (tx['title'] as String? ?? tx['description'] as String? ?? '')
+                        : (tx['party']?['name'] as String? ?? tx['party_name'] as String? ?? '');
+                    if (displayName.isNotEmpty) {
+                      // Navigate to party/title transactions if needed
                     }
                   },
                 ),

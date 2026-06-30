@@ -199,6 +199,18 @@ class BusinessProvider extends ChangeNotifier {
         } else if (response['transactions'] is List) {
           transactions = List<Map<String, dynamic>>.from(response['transactions']);
         }
+        
+        // Ensure __transaction_time is preserved in each transaction
+        for (var tx in transactions) {
+          // Prioritize __transaction_time, then transaction_time, then time
+          if (tx['__transaction_time'] == null) {
+            if (tx['transaction_time'] != null) {
+              tx['__transaction_time'] = tx['transaction_time'];
+            } else if (tx['time'] != null) {
+              tx['__transaction_time'] = tx['time'];
+            }
+          }
+        }
         if (response['pagination'] is Map) {
           final pagination = response['pagination'] as Map<String, dynamic>;
           total = (pagination['total'] as num?)?.toInt() ?? transactions.length;
@@ -246,12 +258,67 @@ class BusinessProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      await _apiService.addBusinessTransaction(data);
+
+      final response = await _apiService.addBusinessTransaction(data);
+      
+      if (response is Map<String, dynamic>) {
+        final responseData = response['data'] ?? response;
+        
+      }
+    
+      
       _isSubmitting = false;
       await fetchBusinessTransactions();
       notifyListeners();
       return true;
     } catch (e) {
+      _isSubmitting = false;
+      _errorMessage = e.toString();
+      notifyListeners();
+      return false;
+    }
+  }
+
+  /// Delete a business transaction
+  Future<bool> deleteBusinessTransaction(String transactionId) async {
+    _isSubmitting = true;
+    _errorMessage = null;
+    notifyListeners();
+
+    try {
+      debugPrint('BusinessProvider: Deleting transaction $transactionId');
+      await _apiService.deleteBusinessTransaction(transactionId);
+      debugPrint('BusinessProvider: Delete API call succeeded');
+      _isSubmitting = false;
+      await fetchBusinessTransactions();
+      notifyListeners();
+      return true;
+    } catch (e) {
+      debugPrint('BusinessProvider: Delete failed - $e');
+      _isSubmitting = false;
+      _errorMessage = e.toString();
+      notifyListeners();
+      return false;
+    }
+  }
+
+  /// Update a business transaction
+  Future<bool> updateBusinessTransaction(String transactionId, Map<String, dynamic> data) async {
+    _isSubmitting = true;
+    _errorMessage = null;
+    notifyListeners();
+
+    try {
+      debugPrint('BusinessProvider: Updating transaction $transactionId');
+      debugPrint('BusinessProvider: Update data: $data');
+      await _apiService.updateBusinessTransaction(transactionId, data);
+      debugPrint('BusinessProvider: Update API call succeeded');
+      _isSubmitting = false;
+      await fetchBusinessTransactions();
+      notifyListeners();
+      return true;
+    } catch (e) {
+      debugPrint('BusinessProvider: Update failed - $e');
       _isSubmitting = false;
       _errorMessage = e.toString();
       notifyListeners();

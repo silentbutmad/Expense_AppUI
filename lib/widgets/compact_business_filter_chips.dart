@@ -12,6 +12,13 @@ class CompactBusinessFilterChips extends StatelessWidget {
 
   static const List<String> _filterOptions = [
     'All',
+    'SALE',
+    'PURCHASE',
+    'EXPENSE',
+  ];
+  
+  static const List<String> _filterLabels = [
+    'All',
     'Sales',
     'Purchases',
     'Expenses',
@@ -29,19 +36,22 @@ class CompactBusinessFilterChips extends StatelessWidget {
           scrollDirection: Axis.horizontal,
           itemCount: _filterOptions.length,
           itemBuilder: (context, index) {
-            final filter = _filterOptions[index];
-            final isSelected = selectedFilter == filter;
+            final filterValue = _filterOptions[index];
+            final filterLabel = _filterLabels[index];
+            final isSelected = selectedFilter == filterValue;
 
             return Padding(
               padding: const EdgeInsets.only(right: 6.0),
               child: FilterChip(
                 label: Text(
-                  filter,
+                  filterLabel,
                   style: const TextStyle(fontSize: 11),
                 ),
                 selected: isSelected,
                 onSelected: (selected) {
-                  onFilterChanged(selected ? filter : null);
+                  // Pass null for "All" to show all transactions
+                  final valueToSend = filterValue == 'All' ? null : filterValue;
+                  onFilterChanged(selected ? valueToSend : null);
                 },
                 selectedColor: theme.colorScheme.primaryContainer,
                 checkmarkColor: theme.colorScheme.onPrimaryContainer,

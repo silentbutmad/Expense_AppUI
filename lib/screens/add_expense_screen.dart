@@ -39,6 +39,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
   String _selectedPaymentMode = 'CASH';
   bool _isBorrow = true;
   bool _isSubmitting = false;
+  bool _isLoadingData = false;
 
   final List<String> _categories = [
     'Other',
@@ -105,48 +106,64 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
     }
   }
 
-  void _loadExistingTransaction(Map<String, dynamic> tx) {
-    final rawAmount = tx['amount'];
-    if (rawAmount != null) {
-      _amountController.text = parseAmount(rawAmount).toString();
-    }
-    final name = tx['name'] as String?;
-    if (name != null) {
-      _personNameController.text = name;
-    }
-    final email = tx['email'] as String?;
-    if (email != null) {
-      _emailController.text = email;
-    }
-    final remark = tx['remark'] as String?;
-    if (remark != null) {
-      _remarkController.text = remark;
-    }
-    final category = tx['category'] as String?;
-    if (category != null) {
-      _selectedCategory = category;
-    }
-    final transactionCategory = tx['transaction_type'] as String?;
-    if (transactionCategory != null) {
-      _selectedTransactionCategory = transactionCategory;
-    }
-    final paymentMode = tx['payment_mode'] as String?;
-    if (paymentMode != null) {
-      _selectedPaymentMode = paymentMode;
-    }
-    final dateStr = tx['transaction_date'] as String?;
-    if (dateStr != null && dateStr.isNotEmpty) {
-      try {
-        final parsedDate = DateTime.parse(dateStr);
-        _selectedDate = DateTime(parsedDate.year, parsedDate.month, parsedDate.day);
-        _selectedTime = TimeOfDay.fromDateTime(parsedDate);
-      } catch (e) {
-        // Keep default date
+  Future<void> _loadExistingTransaction(Map<String, dynamic> tx) async {
+    setState(() {
+      _isLoadingData = true;
+    });
+
+    try {
+      final rawAmount = tx['amount'];
+      if (rawAmount != null) {
+        _amountController.text = parseAmount(rawAmount).toString();
       }
-    }
-    final loanType = tx['loan_type'] as String?;
-    if (loanType != null) {
-      _isBorrow = loanType == 'BORROW';
+      final name = tx['name'] as String?;
+      if (name != null) {
+        _personNameController.text = name;
+      }
+      final email = tx['email'] as String?;
+      if (email != null) {
+        _emailController.text = email;
+      }
+      final remark = tx['remark'] as String?;
+      if (remark != null) {
+        _remarkController.text = remark;
+      }
+      final category = tx['category'] as String?;
+      if (category != null) {
+        _selectedCategory = category;
+      }
+      final transactionCategory = tx['transaction_type'] as String?;
+      if (transactionCategory != null) {
+        _selectedTransactionCategory = transactionCategory;
+      }
+      final paymentMode = tx['payment_mode'] as String?;
+      if (paymentMode != null) {
+        _selectedPaymentMode = paymentMode;
+      }
+      final dateStr = tx['transaction_date'] as String?;
+      if (dateStr != null && dateStr.isNotEmpty) {
+        try {
+          final parsedDate = DateTime.parse(dateStr);
+          _selectedDate = DateTime(parsedDate.year, parsedDate.month, parsedDate.day);
+          _selectedTime = TimeOfDay(hour: parsedDate.hour, minute: parsedDate.minute);
+          debugPrint('Personal tx - Parsed datetime: $_selectedDate $_selectedTime');
+        } catch (e) {
+          debugPrint('Error parsing personal transaction date: $e');
+        }
+      }
+      final loanType = tx['loan_type'] as String?;
+      if (loanType != null) {
+        _isBorrow = loanType == 'BORROW';
+      }
+      
+      setState(() {
+        _isLoadingData = false;
+      });
+    } catch (e) {
+      debugPrint('Error loading personal transaction: $e');
+      setState(() {
+        _isLoadingData = false;
+      });
     }
   }
 
@@ -267,240 +284,242 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
         padding: const EdgeInsets.all(16.0),
         child: Form(
           key: _formKey,
-          child: Column(
-            children: <Widget>[
-              TextFormField(
-                controller: _amountController,
-                decoration: const InputDecoration(
-                  labelText: 'Amount',
-                  border: OutlineInputBorder(),
-                ),
-                keyboardType: TextInputType.number,
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Please enter an amount.';
-                  }
-                  if (double.tryParse(value) == null) {
-                    return 'Please enter a valid number.';
-                  }
-                  if (double.parse(value) <= 0) {
-                    return 'Please enter a number greater than zero.';
-                  }
-                  return null;
-                },
-              ),
-
-              const SizedBox(height: 16),
-              if (isPersonal) ...[
-                Row(
-                  children: [
-                    Expanded(
-                      child: TextFormField(
-                        controller: _personNameController,
-                        decoration: const InputDecoration(
-                          labelText: 'Name',
-                          border: OutlineInputBorder(),
-                        ),
+          child: _isLoadingData
+              ? const Center(child: CircularProgressIndicator())
+              : Column(
+                  children: <Widget>[
+                    TextFormField(
+                      controller: _amountController,
+                      decoration: const InputDecoration(
+                        labelText: 'Amount',
+                        border: OutlineInputBorder(),
                       ),
-                    ),
-                    const SizedBox(width: 8),
-                    IconButton(
-                      onPressed: () {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Contact picker coming soon')),
-                        );
+                      keyboardType: TextInputType.number,
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'Please enter an amount.';
+                        }
+                        if (double.tryParse(value) == null) {
+                          return 'Please enter a valid number.';
+                        }
+                        if (double.parse(value) <= 0) {
+                          return 'Please enter a number greater than zero.';
+                        }
+                        return null;
                       },
-                      icon: const Icon(Icons.contacts),
-                      tooltip: 'Select from contacts',
                     ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                if (_isLoan) ...[
-                  TextFormField(
-                    controller: _emailController,
-                    decoration: const InputDecoration(
-                      labelText: 'Email ID',
-                      border: OutlineInputBorder(),
-                    ),
-                    keyboardType: TextInputType.emailAddress,
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Please enter an email ID.';
-                      }
-                      if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value)) {
-                        return 'Please enter a valid email.';
-                      }
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 16),
-                ],
-                if (!_isLoan) ...[
-                  DropdownButtonFormField(
-                    initialValue: _selectedCategory,
-                    items: _categories.map((String category) {
-                      return DropdownMenuItem(
-                        value: category,
-                        child: Text(category),
-                      );
-                    }).toList(),
-                    onChanged: (newValue) {
-                      setState(() {
-                        _selectedCategory = newValue as String;
-                      });
-                    },
-                    decoration: const InputDecoration(
-                      labelText: 'Category',
-                      border: OutlineInputBorder(),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                ],
-                TextFormField(
-                  controller: _remarkController,
-                  decoration: const InputDecoration(
-                    labelText: 'Remark',
-                    border: OutlineInputBorder(),
-                  ),
-                  maxLines: 2,
-                ),
-                const SizedBox(height: 8),
 
-                if(_isLoan)...[
-                  Row(
-                    children: [
-                      const Text('Loan Type:'),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: Row(
-                          children: [
-                            Radio<bool>(
-                              value: true,
-                              groupValue: _isBorrow,
-                              onChanged: (value) {
-                                setState(() {
-                                  _isBorrow = value!;
-                                });
-                              },
-                            ),
-                            const Text('Borrow'),
-                            Radio<bool>(
-                              value: false,
-                              groupValue: _isBorrow,
-                              onChanged: (value) {
-                                setState(() {
-                                  _isBorrow = value!;
-                                });
-                              },
-                            ),
-                            const Text('Lent'),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                ],
-                Row(
-                  children: [
-                    const Text('Payment Mode:'),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Row(
+                    const SizedBox(height: 16),
+                    if (isPersonal) ...[
+                      Row(
                         children: [
-                          Radio<String>(
-                            value: 'CASH',
-                            groupValue: _selectedPaymentMode,
-                            onChanged: (value) {
-                              setState(() {
-                                _selectedPaymentMode = value!;
-                              });
-                            },
+                          Expanded(
+                            child: TextFormField(
+                              controller: _personNameController,
+                              decoration: const InputDecoration(
+                                labelText: 'Name',
+                                border: OutlineInputBorder(),
+                              ),
+                            ),
                           ),
-                          const Text('Cash'),
-                          Radio<String>(
-                            value: 'ONLINE',
-                            groupValue: _selectedPaymentMode,
-                            onChanged: (value) {
-                              setState(() {
-                                _selectedPaymentMode = value!;
-                              });
+                          const SizedBox(width: 8),
+                          IconButton(
+                            onPressed: () {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('Contact picker coming soon')),
+                              );
                             },
+                            icon: const Icon(Icons.contacts),
+                            tooltip: 'Select from contacts',
                           ),
-                          const Text('Online'),
-                          Radio<String>(
-                            value: 'OTHER',
-                            groupValue: _selectedPaymentMode,
-                            onChanged: (value) {
-                              setState(() {
-                                _selectedPaymentMode = value!;
-                              });
-                            },
-                          ),
-                          const Text('Other'),
                         ],
                       ),
+                      const SizedBox(height: 16),
+                      if (_isLoan) ...[
+                        TextFormField(
+                          controller: _emailController,
+                          decoration: const InputDecoration(
+                            labelText: 'Email ID',
+                            border: OutlineInputBorder(),
+                          ),
+                          keyboardType: TextInputType.emailAddress,
+                          validator: (value) {
+                            if (value == null || value.isEmpty) {
+                              return 'Please enter an email ID.';
+                            }
+                            if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value)) {
+                              return 'Please enter a valid email.';
+                            }
+                            return null;
+                          },
+                        ),
+                        const SizedBox(height: 16),
+                      ],
+                      if (!_isLoan) ...[
+                        DropdownButtonFormField(
+                          initialValue: _selectedCategory,
+                          items: _categories.map((String category) {
+                            return DropdownMenuItem(
+                              value: category,
+                              child: Text(category),
+                            );
+                          }).toList(),
+                          onChanged: (newValue) {
+                            setState(() {
+                              _selectedCategory = newValue as String;
+                            });
+                          },
+                          decoration: const InputDecoration(
+                            labelText: 'Category',
+                            border: OutlineInputBorder(),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                      ],
+                      TextFormField(
+                        controller: _remarkController,
+                        decoration: const InputDecoration(
+                          labelText: 'Remark',
+                          border: OutlineInputBorder(),
+                        ),
+                        maxLines: 2,
+                      ),
+                      const SizedBox(height: 8),
+
+                      if(_isLoan)...[
+                        Row(
+                          children: [
+                            const Text('Loan Type:'),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: Row(
+                                children: [
+                                  Radio<bool>(
+                                    value: true,
+                                    groupValue: _isBorrow,
+                                    onChanged: (value) {
+                                      setState(() {
+                                        _isBorrow = value!;
+                                      });
+                                    },
+                                  ),
+                                  const Text('Borrow'),
+                                  Radio<bool>(
+                                    value: false,
+                                    groupValue: _isBorrow,
+                                    onChanged: (value) {
+                                      setState(() {
+                                        _isBorrow = value!;
+                                      });
+                                    },
+                                  ),
+                                  const Text('Lent'),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+                      ],
+                      Row(
+                        children: [
+                          const Text('Payment Mode:'),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Row(
+                              children: [
+                                Radio<String>(
+                                  value: 'CASH',
+                                  groupValue: _selectedPaymentMode,
+                                  onChanged: (value) {
+                                    setState(() {
+                                      _selectedPaymentMode = value!;
+                                    });
+                                  },
+                                ),
+                                const Text('Cash'),
+                                Radio<String>(
+                                  value: 'ONLINE',
+                                  groupValue: _selectedPaymentMode,
+                                  onChanged: (value) {
+                                    setState(() {
+                                      _selectedPaymentMode = value!;
+                                    });
+                                  },
+                                ),
+                                const Text('Online'),
+                                Radio<String>(
+                                  value: 'OTHER',
+                                  groupValue: _selectedPaymentMode,
+                                  onChanged: (value) {
+                                    setState(() {
+                                      _selectedPaymentMode = value!;
+                                    });
+                                  },
+                                ),
+                                const Text('Other'),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                    ],
+                    Row(
+                      children: <Widget>[
+                        Expanded(
+                          child: Text(
+                            'Date: ${DateFormat.yMd().format(_selectedDate)}',
+                          ),
+                        ),
+                        TextButton(
+                          onPressed: _presentDatePicker,
+                          child: const Text(
+                            'Choose Date',
+                            style: TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: <Widget>[
+                        Expanded(
+                          child: Text(
+                            'Time: ${_selectedTime.format(context)}',
+                          ),
+                        ),
+                        TextButton(
+                          onPressed: _presentTimePicker,
+                          child: const Text(
+                            'Choose Time',
+                            style: TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    const Spacer(),
+                    const SizedBox(height: 16),
+                    ElevatedButton(
+                      onPressed: _isSubmitting ? null : _submitData,
+                      style: ElevatedButton.styleFrom(
+                        padding:
+                            const EdgeInsets.symmetric(horizontal: 48, vertical: 12),
+                      ),
+                      child: _isSubmitting
+                          ? const SizedBox(
+                              height: 20,
+                              width: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                              ),
+                            )
+                          : Text(widget.isBusiness ? 'Add Expense' : 'Add Transaction'),
                     ),
                   ],
                 ),
-                const SizedBox(height: 16),
-              ],
-              Row(
-                children: <Widget>[
-                  Expanded(
-                    child: Text(
-                      'Date: ${DateFormat.yMd().format(_selectedDate)}',
-                    ),
-                  ),
-                  TextButton(
-                    onPressed: _presentDatePicker,
-                    child: const Text(
-                      'Choose Date',
-                      style: TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              Row(
-                children: <Widget>[
-                  Expanded(
-                    child: Text(
-                      'Time: ${_selectedTime.format(context)}',
-                    ),
-                  ),
-                  TextButton(
-                    onPressed: _presentTimePicker,
-                    child: const Text(
-                      'Choose Time',
-                      style: TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              const Spacer(),
-              const SizedBox(height: 16),
-              ElevatedButton(
-                onPressed: _isSubmitting ? null : _submitData,
-                style: ElevatedButton.styleFrom(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 48, vertical: 12),
-                ),
-                child: _isSubmitting
-                    ? const SizedBox(
-                        height: 20,
-                        width: 20,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                        ),
-                      )
-                    : Text(widget.isBusiness ? 'Add Expense' : 'Add Transaction'),
-              ),
-            ],
-          ),
         ),
       ),
     );

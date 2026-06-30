@@ -87,7 +87,20 @@ class ExpenseProvider with ChangeNotifier {
 
     try {
       final transactions = await _apiService.getAllPersonalTransactions();
-      _personalTransactions = List<Map<String, dynamic>>.from(transactions);
+      var normalizedTransactions = List<Map<String, dynamic>>.from(transactions);
+      
+      // Normalize transaction_time to __transaction_time for consistency
+      for (var tx in normalizedTransactions) {
+        if (tx['__transaction_time'] == null) {
+          if (tx['transaction_time'] != null) {
+            tx['__transaction_time'] = tx['transaction_time'];
+          } else if (tx['time'] != null) {
+            tx['__transaction_time'] = tx['time'];
+          }
+        }
+      }
+      
+      _personalTransactions = normalizedTransactions;
       _isLoadingTransactions = false;
       notifyListeners();
     } catch (e) {
@@ -210,7 +223,19 @@ class ExpenseProvider with ChangeNotifier {
         filters: _buildFilterParams(pageToFetch),
       );
 
-      final transactions = List<Map<String, dynamic>>.from(response['transactions'] ?? []);
+      var transactions = List<Map<String, dynamic>>.from(response['transactions'] ?? []);
+      
+      // Normalize transaction_time to __transaction_time for consistency
+      for (var tx in transactions) {
+        if (tx['__transaction_time'] == null) {
+          if (tx['transaction_time'] != null) {
+            tx['__transaction_time'] = tx['transaction_time'];
+          } else if (tx['time'] != null) {
+            tx['__transaction_time'] = tx['time'];
+          }
+        }
+      }
+      
       final total = response['total'] ?? 0;
       final page = response['page'] ?? 1;
       final limit = response['limit'] ?? 20;

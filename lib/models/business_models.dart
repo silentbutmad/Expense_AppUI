@@ -121,6 +121,7 @@ class BusinessTransactionModel {
   final String? description;
   final String transactionType;
   final DateTime transactionDate;
+  final String? transactionTime;
   final DateTime? dueDate;
   final double subtotalAmount;
   final double totalGstAmount;
@@ -141,6 +142,7 @@ class BusinessTransactionModel {
     this.description,
     required this.transactionType,
     required this.transactionDate,
+    this.transactionTime,
     this.dueDate,
     required this.subtotalAmount,
     required this.totalGstAmount,
@@ -165,6 +167,7 @@ class BusinessTransactionModel {
       transactionDate: json['transaction_date'] != null
           ? DateTime.parse(json['transaction_date'])
           : DateTime.now(),
+      transactionTime: json['transaction_time'],
       dueDate: json['due_date'] != null ? DateTime.parse(json['due_date']) : null,
       subtotalAmount: (json['subtotal_amount'] is num) ? (json['subtotal_amount'] as num).toDouble() : 0.0,
       totalGstAmount: (json['total_gst_amount'] is num) ? (json['total_gst_amount'] as num).toDouble() : 0.0,
@@ -190,6 +193,7 @@ class BusinessTransactionModel {
       if (description != null) 'description': description,
       'transaction_type': transactionType,
       'transaction_date': transactionDate.toIso8601String(),
+      if (transactionTime != null) 'transaction_time': transactionTime,
       if (dueDate != null) 'due_date': dueDate!.toIso8601String(),
       'subtotal_amount': subtotalAmount,
       'total_gst_amount': totalGstAmount,

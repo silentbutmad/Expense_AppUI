@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
+import 'package:intl/intl.dart';
 import 'package:myapp/utils/token_manager.dart';
 
 class ApiService with ChangeNotifier {
@@ -518,9 +519,24 @@ class ApiService with ChangeNotifier {
   Future<Map<String, dynamic>> addPersonalTransaction(
     Map<String, dynamic> transactionData,
   ) async {
+    // Split datetime into separate date and time fields for backend
+    final processedData = Map<String, dynamic>.from(transactionData);
+    if (processedData['transaction_date'] != null) {
+      final dateStr = processedData['transaction_date'] as String;
+      if (dateStr.isNotEmpty) {
+        try {
+          final dateTime = DateTime.parse(dateStr);
+          processedData['transaction_date'] = DateFormat('yyyy-MM-dd').format(dateTime);
+          processedData['transaction_time'] = DateFormat('HH:mm').format(dateTime);
+        } catch (e) {
+          debugPrint('Error parsing transaction date: $e');
+        }
+      }
+    }
+    
     final response = await _post(
       '/expenses/addpersonalTransaction',
-      body: transactionData,
+      body: processedData,
     );
     return response;
   }
@@ -576,12 +592,17 @@ class ApiService with ChangeNotifier {
     String id,
     Map<String, dynamic> data,
   ) async {
+    debugPrint('ApiService: Updating personal transaction $id');
+    debugPrint('ApiService: Update data: $data');
     final response = await _put('/expenses/transaction/$id', body: data);
+    debugPrint('ApiService: Update response: $response');
     return response as Map<String, dynamic>;
   }
 
   Future<void> deleteTransaction(String id) async {
+    debugPrint('ApiService: Deleting personal transaction $id');
     await _delete('/expenses/transaction/$id');
+    debugPrint('ApiService: Delete completed');
   }
 
   Future<Map<String, dynamic>> sendReminder(
@@ -606,6 +627,28 @@ class ApiService with ChangeNotifier {
       body: transactionData,
     );
     return response;
+  }
+
+  Future<Map<String, dynamic>> updateBusinessTransaction(
+    String transactionId,
+    Map<String, dynamic> transactionData,
+  ) async {
+    debugPrint('ApiService: Updating business transaction $transactionId');
+    debugPrint('ApiService: Update data: $transactionData');
+    // Business transactions use transaction_number in the URL path
+    final response = await _put(
+      '/expenses/businessTransaction/$transactionId',
+      body: transactionData,
+    );
+    debugPrint('ApiService: Update response: $response');
+    return response;
+  }
+
+  Future<void> deleteBusinessTransaction(String transactionId) async {
+    debugPrint('ApiService: Deleting business transaction $transactionId');
+    // Business transactions use transaction_number in the URL path
+    await _delete('/expenses/businessTransaction/$transactionId');
+    debugPrint('ApiService: Delete completed');
   }
 
   // =========================

@@ -140,7 +140,20 @@ class _MyAppState extends State<MyApp> with RouteAware {
         ),
         GoRoute(
           path: '/add-business-transaction',
-          builder: (context, state) => const AddBusinessTransactionScreen(),
+          builder: (context, state) {
+            final extra = state.extra;
+            if (extra is Map) {
+              final isEdit = extra['isEdit'] as bool? ?? false;
+              final transactionId = extra['transactionId'] as String?;
+              final existingTransaction = extra['existingTransaction'] as Map<String, dynamic>?;
+              return AddBusinessTransactionScreen(
+                isEdit: isEdit,
+                transactionId: transactionId,
+                existingTransaction: existingTransaction,
+              );
+            }
+            return const AddBusinessTransactionScreen();
+          },
         ),
         GoRoute(
           path: '/help-support',

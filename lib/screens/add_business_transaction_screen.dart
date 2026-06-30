@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:myapp/models/business_models.dart';
 import 'package:myapp/providers/business_provider.dart';
@@ -21,7 +22,17 @@ class LineItem {
 }
 
 class AddBusinessTransactionScreen extends StatefulWidget {
-  const AddBusinessTransactionScreen({super.key});
+  final bool isEdit;
+  final String? transactionId;
+  final Map<String, dynamic>? existingTransaction;
+
+  const AddBusinessTransactionScreen({
+    super.key,
+    this.isEdit = false,
+    this.transactionId,
+    this.existingTransaction,
+  });
+  
   @override
   State<AddBusinessTransactionScreen> createState() => _AddBusinessTransactionScreenState();
 }
@@ -45,12 +56,179 @@ class _AddBusinessTransactionScreenState extends State<AddBusinessTransactionScr
   final _titleCtrl = TextEditingController();
   final _descriptionCtrl = TextEditingController();
   final _amountCtrl = TextEditingController();
+  
+  bool get _isEditMode => widget.isEdit;
+  bool _isLoadingData = false;
 
   @override 
   void initState() {
     super.initState();
     _priceControllers[0] = TextEditingController();
     _qtyControllers[0] = TextEditingController(text: '1');
+    
+    // Load existing transaction data if in edit mode
+    if (_isEditMode && widget.existingTransaction != null) {
+      _loadExistingTransaction(widget.existingTransaction!);
+    }
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // If we have a partyId but no party object, look it up from provider
+    if (_isEditMode && widget.existingTransaction != null) {
+      final partyId = widget.existingTransaction!['party_id'] as String?;
+      if (partyId != null && _selParty == null) {
+        final provider = Provider.of<BusinessProvider>(context, listen: false);
+        try {
+          _selParty = provider.parties.firstWhere((p) => p.id == partyId);
+          debugPrint('Found party from provider: ${_selParty!.name}');
+          // Trigger rebuild to show the selected party
+          if (mounted) {
+            setState(() {});
+          }
+        } catch (e) {
+          debugPrint('Party not found in provider list: $partyId');
+        }
+      }
+    }
+  }
+  
+  Future<void> _loadExistingTransaction(Map<String, dynamic> tx) async {
+    setState(() {
+      _isLoadingData = true;
+    });
+
+    try {
+      final transactionType = tx['transaction_type'] as String? ?? 'SALE';
+      final txnTypeUpper = transactionType.toUpperCase();
+      final transactionDate = tx['transaction_date'] as String? ?? '';
+      final dueDate = tx['due_date'] as String?;
+      final title = tx['title'] as String? ?? '';
+      final description = tx['description'] as String? ?? '';
+      // For EXPENSE transactions, use total_amount (saved directly, subtotal is 0)
+      // For other transactions, use total_amount
+      final amount = tx['total_amount'] ?? tx['subtotal_amount'] ?? 0.0;
+      final partyId = tx['party_id'] as String?;
+      final partyData = tx['party'] as Map<String, dynamic>?;
+      final items = tx['items'] as List<dynamic>? ?? [];
+      
+      setState(() {
+        _txnType = txnTypeUpper;
+        _titleCtrl.text = title;
+        _descriptionCtrl.text = description;
+        _amountCtrl.text = amount.toString();
+        
+        // Parse date and time - backend sends separate fields for business transactions
+        if (transactionDate.isNotEmpty) {
+          try {
+            final dateTime = DateTime.parse(transactionDate);
+            _txnDate = DateTime(dateTime.year, dateTime.month, dateTime.day);
+            debugPrint('Parsed date: $_txnDate');
+          } catch (e) {
+            debugPrint('Error parsing date: $e');
+          }
+        }
+        
+        // Parse time from separate transaction_time field if available
+        final transactionTime = tx['transaction_time'] as String?;
+        if (transactionTime != null && transactionTime.isNotEmpty) {
+          try {
+            final timeParts = transactionTime.split(':');
+            if (timeParts.length >= 2) {
+              final hour = int.parse(timeParts[0]);
+              final minute = int.parse(timeParts[1]);
+              _txnTime = TimeOfDay(hour: hour, minute: minute);
+              debugPrint('Parsed time from transaction_time: $_txnTime');
+            }
+          } catch (e) {
+            debugPrint('Error parsing time: $e');
+          }
+        } else if (transactionDate.isNotEmpty && transactionDate.contains('T')) {
+          // Fallback: extract time from datetime string
+          try {
+            final dateTime = DateTime.parse(transactionDate);
+            _txnTime = TimeOfDay(hour: dateTime.hour, minute: dateTime.minute);
+            debugPrint('Parsed time from datetime: $_txnTime');
+          } catch (e) {
+            debugPrint('Error parsing time from datetime: $e');
+          }
+        }
+        
+        // Parse due date
+        if (dueDate != null && dueDate.isNotEmpty) {
+          try {
+            _dueDate = DateTime.parse(dueDate);
+          } catch (e) {
+            debugPrint('Error parsing due date: $e');
+          }
+        }
+        
+        // Load party if available
+        if (partyData != null) {
+          _selParty = PartyModel.fromJson(partyData);
+          debugPrint('Loaded party from transaction data: ${_selParty!.name}');
+        } else if (partyId != null) {
+          // Try to find party from provider
+          final provider = Provider.of<BusinessProvider>(context, listen: false);
+          try {
+            _selParty = provider.parties.firstWhere((p) => p.id == partyId);
+            debugPrint('Found party from provider: ${_selParty!.name}');
+          } catch (e) {
+            debugPrint('Party not found in provider list: $partyId');
+          }
+        }
+        
+        // Load items - ensure price is properly loaded
+        if (items.isNotEmpty) {
+          _items.clear();
+          for (var i = 0; i < items.length; i++) {
+            final item = items[i];
+            if (item is Map) {
+              final lineItem = LineItem();
+              lineItem.itemId = item['item_id'] as String?;
+              lineItem.description = item['description'] as String? ?? '';
+              lineItem.quantity = item['quantity'] as int? ?? 1;
+              
+              // Parse price - handle both num and string types
+              final priceValue = item['price'];
+              if (priceValue is num) {
+                lineItem.price = priceValue.toDouble();
+              } else if (priceValue is String) {
+                lineItem.price = double.tryParse(priceValue) ?? 0.0;
+              } else {
+                lineItem.price = 0.0;
+              }
+              
+              // Parse GST rate
+              final gstValue = item['gst_rate'];
+              if (gstValue is num) {
+                lineItem.gstRate = gstValue.toDouble();
+              } else if (gstValue is String) {
+                lineItem.gstRate = double.tryParse(gstValue) ?? 18.0;
+              } else {
+                lineItem.gstRate = 18.0;
+              }
+              
+              _items.add(lineItem);
+              debugPrint('Loaded item $i: ${lineItem.description}, price: ${lineItem.price}, qty: ${lineItem.quantity}');
+              
+              // Create controllers for this item
+              _priceControllers[i] = TextEditingController(text: lineItem.price.toString());
+              _qtyControllers[i] = TextEditingController(text: lineItem.quantity.toString());
+              _itemGstRates[i] = lineItem.gstRate;
+            }
+          }
+        }
+        
+        _isLoadingData = false;
+      });
+    } catch (e) {
+      debugPrint('Error loading transaction: $e');
+      setState(() {
+        _isLoadingData = false;
+      });
+    }
   }
   
   @override 
@@ -68,13 +246,17 @@ class _AddBusinessTransactionScreenState extends State<AddBusinessTransactionScr
     super.dispose();
   }
 
+  // For EXPENSE: amount entered is the total (no GST)
+  // For SALE/PURCHASE: calculate from items
   double get _subtotal => _txnType == 'EXPENSE' 
       ? double.tryParse(_amountCtrl.text) ?? 0.0
       : _items.fold(0.0, (s, i) => s + i.total);
   double get _totalGst => _txnType == 'EXPENSE' 
-      ? _subtotal * _gstPct / 100
+      ? 0.0 // No GST for expenses
       : _items.fold(0.0, (s, i) => s + i.gstAmount);
-  double get _totalAmt => _subtotal + _totalGst;
+  double get _totalAmt => _txnType == 'EXPENSE' 
+      ? _subtotal // For expenses, total = subtotal (no GST)
+      : _subtotal + _totalGst;
 
   // Get filtered parties based on transaction type
   List<PartyModel> _getFilteredParties(List<PartyModel> allParties) {
@@ -110,6 +292,7 @@ class _AddBusinessTransactionScreenState extends State<AddBusinessTransactionScr
       }
       _priceControllers.clear();
       _qtyControllers.clear();
+      _itemGstRates.clear();
       _priceControllers[0] = TextEditingController();
       _qtyControllers[0] = TextEditingController(text: '1');
     });
@@ -156,10 +339,19 @@ class _AddBusinessTransactionScreenState extends State<AddBusinessTransactionScr
     final b = p.selectedBusiness;
     if (b == null) return;
 
+    // Combine date and time into single datetime field for backend
+    final combinedDateTime = DateTime(
+      _txnDate.year,
+      _txnDate.month,
+      _txnDate.day,
+      _txnTime.hour,
+      _txnTime.minute,
+    );
+    
     Map<String, dynamic> transactionData = {
       'business_id': b.business_id,
       'transaction_type': _txnType,
-      'transaction_date': DateFormat('yyyy-MM-dd').format(_txnDate),
+      'transaction_date': combinedDateTime.toIso8601String(),
       if (_dueDate != null) 'due_date': DateFormat('yyyy-MM-dd').format(_dueDate!),
       'subtotal_amount': _subtotal,
       'total_gst_amount': _totalGst,
@@ -174,13 +366,26 @@ class _AddBusinessTransactionScreenState extends State<AddBusinessTransactionScr
       transactionData['items'] = _items.map((e) => e.toJson()).toList();
     }
 
-    final success = await p.addBusinessTransaction(transactionData);
-    if (mounted) {
-      if (success) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Transaction created!')));
-        Navigator.of(context).pop(true);
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(p.errorMessage ?? 'Failed')));
+    bool success;
+    if (_isEditMode && widget.transactionId != null) {
+      success = await p.updateBusinessTransaction(widget.transactionId!, transactionData);
+      if (mounted) {
+        if (success) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Transaction updated!')));
+          Navigator.of(context).pop(true);
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(p.errorMessage ?? 'Failed')));
+        }
+      }
+    } else {
+      success = await p.addBusinessTransaction(transactionData);
+      if (mounted) {
+        if (success) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Transaction created!')));
+          Navigator.of(context).pop(true);
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(p.errorMessage ?? 'Failed')));
+        }
       }
     }
   }
@@ -215,9 +420,14 @@ class _AddBusinessTransactionScreenState extends State<AddBusinessTransactionScr
   Widget build(BuildContext context) {
     final t = Theme.of(context);
     return Scaffold(
-      appBar: AppBar(title: const Text('Add Transaction')),
+      appBar: AppBar(title: Text(_isEditMode ? 'Edit Transaction' : 'Add Transaction')),
       body: Consumer<BusinessProvider>(builder: (context, prov, _) {
         if (prov.selectedBusiness == null) return const Center(child: Text('Select a business first'));
+        
+        // Show loading indicator while loading transaction data
+        if (_isLoadingData) {
+          return const Center(child: CircularProgressIndicator());
+        }
         
         final filteredParties = _getFilteredParties(prov.parties);
         
@@ -323,7 +533,7 @@ class _AddBusinessTransactionScreenState extends State<AddBusinessTransactionScr
               style: ElevatedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 14)),
               child: prov.isSubmitting
                   ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                  : Text('Create $_txnType'),
+                  : Text(_isEditMode ? 'Update $_txnType' : 'Create $_txnType'),
             ),
           ])),
         );
@@ -405,7 +615,7 @@ class _AddBusinessTransactionScreenState extends State<AddBusinessTransactionScr
         const SizedBox(height: 8),
         InkWell(
           onTap: () async {
-            final result = await Navigator.of(context).pushNamed('/add-party');
+            final result = await context.push('/add-party');
             if (result == true) {
               await prov.fetchParties();
             }
@@ -526,7 +736,7 @@ class _AddBusinessTransactionScreenState extends State<AddBusinessTransactionScr
         const SizedBox(height: 8),
         InkWell(
           onTap: () async {
-            final result = await Navigator.of(context).pushNamed('/add-item');
+            final result = await context.push('/add-item');
             if (result == true) {
               await prov.fetchCatalogItems();
             }

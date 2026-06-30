@@ -44,14 +44,19 @@ class CompactTransactionCard extends StatelessWidget {
     final paymentMode = transaction['payment_mode'] as String? ?? '';
     final dateStr = transaction['transaction_date'] as String? ?? '';
     final remark = transaction['remark'] as String? ?? '';
-    final personName = transaction['name'] as String? ?? transaction['party']?['name'] as String? ?? transaction['party_name'] as String? ?? '';
+    final isExpenseTransaction = transactionType.toUpperCase() == 'EXPENSE';
+    final personName = isExpenseTransaction
+        ? (transaction['title'] as String? ?? transaction['description'] as String? ?? '')
+        : (transaction['name'] as String? ?? transaction['party']?['name'] as String? ?? transaction['party_name'] as String? ?? '');
 
     DateTime? date;
     String? timeStr;
     if (dateStr.isNotEmpty) {
       try {
         date = DateTime.parse(dateStr);
-        final transactionTime = transaction['transaction_time'] as String?;
+        // Use __transaction_time field if available, fallback to transaction_time, otherwise extract from date
+        final transactionTime = transaction['__transaction_time'] as String? ??
+                               transaction['transaction_time'] as String?;
         if (transactionTime != null && transactionTime.isNotEmpty) {
           timeStr = transactionTime;
         } else {

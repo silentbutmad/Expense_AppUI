@@ -44,7 +44,8 @@ class ExpenseList extends StatelessWidget {
         final amount = parseAmount(tx['amount']);
         final category = tx['category'] as String? ?? tx['name'] as String? ?? 'Unknown';
         final dateStr = tx['transaction_date'] as String? ?? '';
-        final transactionTime = tx['transaction_time'] as String? ?? '';
+        final transactionTime = tx['__transaction_time'] as String? ??
+                               tx['transaction_time'] as String? ?? '';
         final transactionType = tx['transaction_type'] as String? ?? '';
 
         DateTime? date;
