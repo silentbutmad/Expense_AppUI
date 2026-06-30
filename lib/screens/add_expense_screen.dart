@@ -112,51 +112,64 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
     });
 
     try {
+      // Parse all values first
       final rawAmount = tx['amount'];
-      if (rawAmount != null) {
-        _amountController.text = parseAmount(rawAmount).toString();
-      }
       final name = tx['name'] as String?;
-      if (name != null) {
-        _personNameController.text = name;
-      }
       final email = tx['email'] as String?;
-      if (email != null) {
-        _emailController.text = email;
-      }
       final remark = tx['remark'] as String?;
-      if (remark != null) {
-        _remarkController.text = remark;
-      }
       final category = tx['category'] as String?;
-      if (category != null) {
-        _selectedCategory = category;
-      }
       final transactionCategory = tx['transaction_type'] as String?;
-      if (transactionCategory != null) {
-        _selectedTransactionCategory = transactionCategory;
-      }
       final paymentMode = tx['payment_mode'] as String?;
-      if (paymentMode != null) {
-        _selectedPaymentMode = paymentMode;
-      }
       final dateStr = tx['transaction_date'] as String?;
+      final loanType = tx['loan_type'] as String?;
+      
+      // Parse date/time
+      DateTime? parsedDate;
+      TimeOfDay? parsedTime;
       if (dateStr != null && dateStr.isNotEmpty) {
         try {
-          final parsedDate = DateTime.parse(dateStr);
-          _selectedDate = DateTime(parsedDate.year, parsedDate.month, parsedDate.day);
-          _selectedTime = TimeOfDay(hour: parsedDate.hour, minute: parsedDate.minute);
-          debugPrint('Personal tx - Parsed datetime: $_selectedDate $_selectedTime');
+          final dateTime = DateTime.parse(dateStr);
+          parsedDate = DateTime(dateTime.year, dateTime.month, dateTime.day);
+          parsedTime = TimeOfDay(hour: dateTime.hour, minute: dateTime.minute);
+          debugPrint('Personal tx - Parsed datetime: $parsedDate $parsedTime');
         } catch (e) {
           debugPrint('Error parsing personal transaction date: $e');
         }
       }
-      final loanType = tx['loan_type'] as String?;
-      if (loanType != null) {
-        _isBorrow = loanType == 'BORROW';
-      }
       
+      // Now set all values in a single setState
       setState(() {
+        if (rawAmount != null) {
+          _amountController.text = parseAmount(rawAmount).toString();
+        }
+        if (name != null) {
+          _personNameController.text = name;
+        }
+        if (email != null) {
+          _emailController.text = email;
+        }
+        if (remark != null) {
+          _remarkController.text = remark;
+        }
+        if (category != null) {
+          _selectedCategory = category;
+        }
+        if (transactionCategory != null) {
+          _selectedTransactionCategory = transactionCategory;
+        }
+        if (paymentMode != null) {
+          _selectedPaymentMode = paymentMode;
+        }
+        if (parsedDate != null) {
+          _selectedDate = parsedDate;
+        }
+        if (parsedTime != null) {
+          _selectedTime = parsedTime;
+        }
+        if (loanType != null) {
+          _isBorrow = loanType == 'BORROW';
+        }
+        
         _isLoadingData = false;
       });
     } catch (e) {

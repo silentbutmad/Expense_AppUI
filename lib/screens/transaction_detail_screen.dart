@@ -30,7 +30,14 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen> {
     final transactionType = tx['transaction_type'] as String? ??
         tx['transactionType'] as String? ??
         'N/A';
-    final isBusinessTransaction = ['SALE', 'PURCHASE', 'EXPENSE'].contains(transactionType.toUpperCase());
+    // Determine if business transaction based on presence of business-specific fields
+    // Personal transactions have: amount, name, email, category, payment_mode
+    // Business transactions have: business_id, transaction_number, items, party
+    final isBusinessTransaction = 
+        tx['business_id'] != null || 
+        tx['transaction_number'] != null ||
+        tx['context_type'] == 'BUSINESS' ||
+        ['SALE', 'PURCHASE'].contains(transactionType.toUpperCase());
     final loanType =
         tx['loan_type'] as String? ?? tx['loanType'] as String? ?? 'N/A';
     String dateStr =
@@ -493,7 +500,12 @@ ${remark.isNotEmpty ? 'Remark : $remark' : ''}
     }
 
     final transactionType = tx['transaction_type'] as String? ?? tx['transactionType'] as String? ?? '';
-    final isBusinessTransaction = ['SALE', 'PURCHASE', 'EXPENSE'].contains(transactionType.toUpperCase());
+    // Use same logic as display - check for business-specific fields
+    final isBusinessTransaction = 
+        tx['business_id'] != null || 
+        tx['transaction_number'] != null ||
+        tx['context_type'] == 'BUSINESS' ||
+        ['SALE', 'PURCHASE'].contains(transactionType.toUpperCase());
 
     if (isBusinessTransaction) {
       // Navigate to AddBusinessTransactionScreen for business transactions
@@ -551,7 +563,12 @@ ${remark.isNotEmpty ? 'Remark : $remark' : ''}
     }
 
     final transactionType = tx['transaction_type'] as String? ?? tx['transactionType'] as String? ?? '';
-    final isBusinessTransaction = ['SALE', 'PURCHASE', 'EXPENSE'].contains(transactionType.toUpperCase());
+    // Use same logic as display - check for business-specific fields
+    final isBusinessTransaction = 
+        tx['business_id'] != null || 
+        tx['transaction_number'] != null ||
+        tx['context_type'] == 'BUSINESS' ||
+        ['SALE', 'PURCHASE'].contains(transactionType.toUpperCase());
     debugPrint('Is business transaction: $isBusinessTransaction, type: $transactionType');
 
     // Show confirmation dialog
