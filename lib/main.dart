@@ -92,11 +92,15 @@ class _MyAppState extends State<MyApp> with RouteAware {
               final transactionType = extra['transactionType'] as String?;
               final personName = extra['personName'] as String?;
               final transactionCategory = extra['transactionCategory'] as String?;
+              final transactionId = extra['transactionId'] as String?;
+              final existingTransaction = extra['existingTransaction'] as Map<String, dynamic>?;
               return AddExpenseScreen(
                 isBusiness: isBusiness,
                 transactionType: transactionType,
                 personName: personName,
                 transactionCategory: transactionCategory,
+                transactionId: transactionId,
+                existingTransaction: existingTransaction,
               );
             }
             final isBusiness = extra as bool? ?? false;

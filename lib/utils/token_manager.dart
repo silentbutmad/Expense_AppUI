@@ -78,6 +78,12 @@ class TokenManager {
   /// Get user ID from stored user data
   static Future<String?> getUserId() async {
     final userData = await getUserData();
-    return userData?['id']?.toString();
+    if (userData == null) return null;
+    
+    // Try multiple possible field names for user ID
+    return userData['id']?.toString() ?? 
+           userData['userId']?.toString() ?? 
+           userData['user_id']?.toString() ??
+           userData['_id']?.toString();
   }
 }

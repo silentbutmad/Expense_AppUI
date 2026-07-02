@@ -53,7 +53,9 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
     final userId = await TokenManager.getUserId();
     
     if (userId != null) {
-      await supportProvider.refreshAll(userId);
+      await supportProvider.refreshAll();
+    } else {
+      await supportProvider.loadPublicData();
     }
   }
 
@@ -95,10 +97,7 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
       );
 
       // Refresh tickets list
-      final userId = await TokenManager.getUserId();
-      if (userId != null) {
-        await supportProvider.getUserTickets(userId);
-      }
+      await supportProvider.getUserTickets();
     } else if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -121,7 +120,9 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
             onRefresh: () async {
               final userId = await TokenManager.getUserId();
               if (userId != null) {
-                await supportProvider.refreshAll(userId);
+                await supportProvider.refreshAll();
+              } else {
+                await supportProvider.loadPublicData();
               }
             },
             child: SingleChildScrollView(
@@ -367,6 +368,12 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
               child: CircularProgressIndicator(),
             ),
           )
+        else if (supportProvider.ticketsError != null)
+          _EmptyState(
+            icon: Icons.cloud_off,
+            message: 'Could not load tickets',
+            subMessage: 'Pull down to retry',
+          )
         else if (supportProvider.tickets.isEmpty)
           _EmptyState(
             icon: Icons.support_agent,
@@ -391,11 +398,7 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
                       builder: (context) => const TicketDetailsScreen(),
                     ),
                   );
-                  // Refresh tickets when returning
-                  final userId = await TokenManager.getUserId();
-                  if (userId != null && mounted) {
-                    await supportProvider.getUserTickets(userId);
-                  }
+                  // Don't refresh tickets on return - causes unnecessary loading
                 },
               );
             },
@@ -419,6 +422,12 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
               padding: EdgeInsets.all(32.0),
               child: CircularProgressIndicator(),
             ),
+          )
+        else if (supportProvider.faqsError != null)
+          _EmptyState(
+            icon: Icons.cloud_off,
+            message: 'Unable to load FAQs',
+            subMessage: 'Pull down to retry',
           )
         else if (supportProvider.faqs.isEmpty)
           _EmptyState(
@@ -459,10 +468,21 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
             ),
           )
         else if (helpInfo == null)
-          const Card(
+          Card(
             child: Padding(
-              padding: EdgeInsets.all(16.0),
-              child: Text('Unable to load help information'),
+              padding: const EdgeInsets.all(16.0),
+              child: Row(
+                children: [
+                  Icon(Icons.info_outline, color: Colors.grey[600]),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      'Help center information temporarily unavailable',
+                      style: TextStyle(color: Colors.grey[600]),
+                    ),
+                  ),
+                ],
+              ),
             ),
           )
         else

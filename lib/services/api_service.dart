@@ -38,6 +38,11 @@ class ApiService with ChangeNotifier {
       _refreshToken = await TokenManager.getRefreshToken();
       _userData = await TokenManager.getUserData();
 
+      if (_userData != null) {
+        debugPrint('User data keys: ${_userData!.keys.toList()}');
+        debugPrint('User ID: ${_userData!['id'] ?? _userData!['userId'] ?? _userData!['user_id']}');
+      }
+
       notifyListeners();
       return _accessToken != null && _refreshToken != null;
     } catch (e) {
@@ -73,8 +78,8 @@ class ApiService with ChangeNotifier {
       );
 
       // Handle different response formats
-      final accessToken = response['accessToken'] ?? response['token'];
-      final refreshToken = response['refreshToken'] ?? response['refresh_token'];
+      final accessToken = response['accessToken'];
+      final refreshToken = response['refreshToken'];
 
       if (accessToken == null || refreshToken == null) {
         throw Exception('Invalid response: missing tokens');
@@ -82,7 +87,11 @@ class ApiService with ChangeNotifier {
 
       _accessToken = accessToken;
       _refreshToken = refreshToken;
-      _userData = response['user'] ?? response['userData'];
+      _userData = response['user'];
+      
+      debugPrint("=== AFTER LOGIN ===");
+debugPrint("ApiService instance: ${identityHashCode(this)}");
+debugPrint("UserData: $_userData");
 
       // Save to secure storage
       await TokenManager.saveTokens(
@@ -90,7 +99,7 @@ class ApiService with ChangeNotifier {
         refreshToken: refreshToken,
         userData: _userData,
       );
-
+      
       notifyListeners();
       return response;
     } catch (e) {
@@ -547,6 +556,7 @@ class ApiService with ChangeNotifier {
   }
 
   Future<List<dynamic>> getAllPersonalTransactions() async {
+   
     final response = await _get('/expenses/allPersonalTransactions');
     if (response is List) {
       return response;
@@ -556,12 +566,13 @@ class ApiService with ChangeNotifier {
         return transactions;
       }
     }
-    return [];
+     return [];
   }
 
   Future<Map<String, dynamic>> getAllPersonalTransactionsWithFilters({
     Map<String, String>? filters,
   }) async {
+    
     final queryParams = filters != null && filters.isNotEmpty
         ? '?${filters.entries.map((e) => '${Uri.encodeComponent(e.key)}=${Uri.encodeComponent(e.value)}').join('&')}'
         : '';
@@ -737,14 +748,59 @@ class ApiService with ChangeNotifier {
     return response as Map<String, dynamic>;
   }
 
-  Future<List<dynamic>> getUserTickets(String userId) async {
-    final response = await _get('/support/tickets/user/$userId');
-    if (response is List) {
-      return response;
-    } else if (response is Map<String, dynamic>) {
-      return List<dynamic>.from(response['data'] ?? []);
+  Future<Map<String, dynamic>> getUserTickets({
+    String? status,
+    String? priority,
+    String? issueType,
+    int page = 1,
+    int limit = 10,
+  }) async {
+    final queryParams = <String, String>{};
+    
+    if (status != null && status.isNotEmpty) {
+      queryParams['status'] = status;
     }
-    return [];
+    if (priority != null && priority.isNotEmpty) {
+      queryParams['priority'] = priority;
+    }
+    if (issueType != null && issueType.isNotEmpty) {
+      queryParams['issueType'] = issueType;
+    }
+    queryParams['page'] = page.toString();
+    queryParams['limit'] = limit.toString();
+    
+    final queryString = queryParams.entries
+        .map((e) => '${Uri.encodeComponent(e.key)}=${Uri.encodeComponent(e.value)}')
+        .join('&');
+    
+    final endpoint = '/support/tickets${queryString.isNotEmpty ? "?$queryString" : ""}';
+    final response = await _get(endpoint);
+    
+    if (response is Map<String, dynamic>) {
+      // Backend returns { success, data: [...], pagination: {...} }
+      // Normalize to consistent format
+      final tickets = response['data'] as List<dynamic>? ?? [];
+      final pagination = response['pagination'] as Map<String, dynamic>? ?? {};
+      
+      return {
+        'tickets': tickets,
+        'total': pagination['total'] ?? tickets.length,
+        'page': pagination['page'] ?? page,
+        'limit': pagination['limit'] ?? limit,
+      };
+    }
+    
+    // If response is a list, wrap it in the expected format
+    if (response is List) {
+      return {
+        'tickets': response,
+        'total': response.length,
+        'page': page,
+        'limit': limit,
+      };
+    }
+    
+    return {'tickets': [], 'total': 0, 'page': page, 'limit': limit};
   }
 
   Future<Map<String, dynamic>> getTicketById(String ticketId) async {
@@ -785,7 +841,7 @@ class ApiService with ChangeNotifier {
   }
 
   Future<List<dynamic>> getFaqs() async {
-    final response = await _get('/support/faqs', requiresAuth: false);
+    final response = await _get('/support/faqs', requiresAuth: true);
     if (response is List) {
       return response;
     } else if (response is Map<String, dynamic>) {
@@ -795,7 +851,7 @@ class ApiService with ChangeNotifier {
   }
 
   Future<Map<String, dynamic>> getHelpInfo() async {
-    final response = await _get('/support/help', requiresAuth: false);
+    final response = await _get('/support/help', requiresAuth: true);
     return response as Map<String, dynamic>;
   }
 

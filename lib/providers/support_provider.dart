@@ -53,9 +53,18 @@ class SupportProvider extends ChangeNotifier {
   bool _isAddingComment = false;
   bool get isAddingComment => _isAddingComment;
 
-  // Error state
+  // Per-section error states
   String? _errorMessage;
   String? get errorMessage => _errorMessage;
+
+  String? _ticketsError;
+  String? get ticketsError => _ticketsError;
+
+  String? _faqsError;
+  String? get faqsError => _faqsError;
+
+  String? _helpInfoError;
+  String? get helpInfoError => _helpInfoError;
 
   // ==================
   // API METHODS
@@ -64,7 +73,7 @@ class SupportProvider extends ChangeNotifier {
   /// Get FAQs
   Future<void> getFaqs() async {
     _isLoadingFaqs = true;
-    _errorMessage = null;
+    _faqsError = null;
     notifyListeners();
 
     try {
@@ -74,7 +83,7 @@ class SupportProvider extends ChangeNotifier {
       notifyListeners();
     } catch (e) {
       _isLoadingFaqs = false;
-      _errorMessage = e.toString();
+      _faqsError = e.toString();
       notifyListeners();
     }
   }
@@ -91,12 +100,12 @@ class SupportProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final userData = _apiService.userData;
-      if (userData == null || userData['id'] == null) {
+      // Check if user is authenticated (has access token)
+      // Backend will extract user_id from JWT token, not from request body
+      if (!_apiService.isAuthenticated) {
         throw Exception('User not authenticated');
       }
 
-      final userId = userData['id'].toString();
       final ticketData = {
         'title': title,
         'description': description,
@@ -124,19 +133,43 @@ class SupportProvider extends ChangeNotifier {
   }
 
   /// Get user tickets
-  Future<void> getUserTickets(String userId) async {
+  Future<void> getUserTickets({
+    String? status,
+    String? priority,
+    String? issueType,
+    int page = 1,
+    int limit = 10,
+  }) async {
     _isLoadingTickets = true;
-    _errorMessage = null;
+    _ticketsError = null;
     notifyListeners();
 
     try {
-      final ticketsData = await _apiService.getUserTickets(userId);
-      _tickets = ticketsData.map((ticket) => TicketModel.fromJson(ticket)).toList();
-      _isLoadingTickets = false;
-      notifyListeners();
+      debugPrint('Fetching tickets with filters: status=$status, priority=$priority, issueType=$issueType');
+      final response = await _apiService.getUserTickets(
+        status: status,
+        priority: priority,
+        issueType: issueType,
+        page: page,
+        limit: limit,
+      );
+      
+      debugPrint('API Response: $response');
+      final ticketsList = response['tickets'] as List<dynamic>? ?? [];
+      debugPrint('Tickets list length: ${ticketsList.length}');
+      
+      _tickets = ticketsList.map((ticket) {
+        debugPrint('Parsing ticket: $ticket');
+        return TicketModel.fromJson(ticket);
+      }).toList();
+      
+      debugPrint('Total tickets in provider: ${_tickets.length}');
     } catch (e) {
+      _ticketsError = e.toString();
+      // Keep existing tickets on error instead of clearing them
+      debugPrint('Error fetching tickets: $e');
+    } finally {
       _isLoadingTickets = false;
-      _errorMessage = e.toString();
       notifyListeners();
     }
   }
@@ -177,8 +210,58 @@ class SupportProvider extends ChangeNotifier {
     }
   }
 
+  /// Check if current user can comment on ticket
+  bool canUserComment(String ticketUserId) {
+    try {
+    
+      
+      String? currentUserId;
+      
+      
+      // Try to get user ID from userData first
+      final currentUser = _apiService.userData;
+      
+      
+      if (currentUser != null) {
+        
+        // Try multiple possible field names for user ID
+        currentUserId = currentUser['id']?.toString() ?? 
+                        currentUser['userId']?.toString() ?? 
+                        currentUser['user_id']?.toString() ??
+                        currentUser['_id']?.toString();
+        
+        
+      }
+      
+      // If userData is null or doesn't have user ID, allow comment
+      // Backend will do the actual authorization check
+      
+      final canComment = currentUserId == ticketUserId;
+    
+      
+      return canComment;
+    } catch (e) {
+      debugPrint('Error in canUserComment: $e');
+      // On error, allow the comment - backend will validate
+      return true;
+    }
+  }
+
   /// Add comment to ticket
   Future<bool> addComment(String ticketId, String message) async {
+    // Check if user can comment on this ticket
+    if (_selectedTicket == null) {
+      _errorMessage = 'Ticket not found';
+      notifyListeners();
+      return false;
+    }
+
+    if (!canUserComment(_selectedTicket!.userId)) {
+      _errorMessage = 'Access denied. You can only comment on your own tickets.';
+      notifyListeners();
+      return false;
+    }
+
     _isAddingComment = true;
     _errorMessage = null;
     notifyListeners();
@@ -206,25 +289,38 @@ class SupportProvider extends ChangeNotifier {
   /// Get help center information
   Future<void> getHelpInfo() async {
     _isLoadingHelpInfo = true;
-    _errorMessage = null;
+    _helpInfoError = null;
     notifyListeners();
 
     try {
       final helpInfoData = await _apiService.getHelpInfo();
-      _helpInfo = HelpInfoModel.fromJson(helpInfoData['data'] ?? helpInfoData);
+      _helpInfo = HelpInfoModel.fromJson(helpInfoData);
+      print ("-------------------------------------------hi");
+      print(helpInfo?.email);
+    
       _isLoadingHelpInfo = false;
+
       notifyListeners();
     } catch (e) {
       _isLoadingHelpInfo = false;
-      _errorMessage = e.toString();
+      _helpInfoError = e.toString();
+      _helpInfo = null;
       notifyListeners();
     }
   }
 
   /// Refresh all support data
-  Future<void> refreshAll(String userId) async {
+  Future<void> refreshAll() async {
     await Future.wait([
-      getUserTickets(userId),
+      getUserTickets(),
+      getFaqs(),
+      getHelpInfo(),
+    ]);
+  }
+
+  /// Load public support data (FAQs, help info) - no auth required
+  Future<void> loadPublicData() async {
+    await Future.wait([
       getFaqs(),
       getHelpInfo(),
     ]);
@@ -243,9 +339,12 @@ class SupportProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Clear error message
+  /// Clear all error messages
   void clearError() {
     _errorMessage = null;
+    _ticketsError = null;
+    _faqsError = null;
+    _helpInfoError = null;
     notifyListeners();
   }
 

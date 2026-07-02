@@ -4,7 +4,6 @@ import 'package:myapp/models/support_models.dart';
 import 'package:myapp/providers/support_provider.dart';
 import 'package:myapp/theme/app_theme.dart';
 import 'package:myapp/theme/app_tokens.dart';
-import 'package:myapp/utils/token_manager.dart';
 import 'package:provider/provider.dart';
 
 class TicketDetailsScreen extends StatefulWidget {
@@ -48,6 +47,8 @@ class _TicketDetailsScreenState extends State<TicketDetailsScreen> {
     if (_commentController.text.trim().isEmpty) return;
 
     final supportProvider = context.read<SupportProvider>();
+    
+    
     final success = await supportProvider.addComment(
       _ticketId!,
       _commentController.text.trim(),
@@ -175,6 +176,9 @@ class _TicketDetailsScreenState extends State<TicketDetailsScreen> {
   }
 
   Widget _buildCommentsSection(SupportProvider supportProvider) {
+    final ticket = supportProvider.selectedTicket;
+    final canComment = ticket != null && supportProvider.canUserComment(ticket.userId);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -196,7 +200,7 @@ class _TicketDetailsScreenState extends State<TicketDetailsScreen> {
               padding: const EdgeInsets.all(32.0),
               child: Center(
                 child: Text(
-                  'No comments yet',
+                  canComment ? 'No comments yet' : 'No comments on this ticket',
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                         color: Colors.grey[600],
                       ),
@@ -215,44 +219,70 @@ class _TicketDetailsScreenState extends State<TicketDetailsScreen> {
             },
           ),
         const SizedBox(height: 16),
-        Card(
-          child: Padding(
-            padding: const EdgeInsets.all(AppTokens.padding),
-            child: Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _commentController,
-                    decoration: const InputDecoration(
-                      hintText: 'Add a comment...',
-                      border: OutlineInputBorder(),
+        if (canComment)
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(AppTokens.padding),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _commentController,
+                      decoration: const InputDecoration(
+                        hintText: 'Add a comment...',
+                        border: OutlineInputBorder(),
+                      ),
+                      maxLines: 3,
+                      minLines: 1,
                     ),
-                    maxLines: 3,
-                    minLines: 1,
                   ),
-                ),
-                const SizedBox(width: 12),
-                IconButton(
-                  onPressed: supportProvider.isAddingComment ? null : _submitComment,
-                  icon: supportProvider.isAddingComment
-                      ? const SizedBox(
-                          height: 20,
-                          width: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                  const SizedBox(width: 12),
+                  IconButton(
+                    onPressed: supportProvider.isAddingComment ? null : _submitComment,
+                    icon: supportProvider.isAddingComment
+                        ? const SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                            ),
+                          )
+                        : const Icon(Icons.send),
+                    style: IconButton.styleFrom(
+                      backgroundColor: AppTheme.primaryColor,
+                      foregroundColor: Colors.white,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          )
+        else if (ticket != null)
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.lock,
+                    color: Colors.grey[600],
+                    size: 20,
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      'You can only comment on your own tickets',
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color: Colors.grey[600],
+                            fontStyle: FontStyle.italic,
                           ),
-                        )
-                      : const Icon(Icons.send),
-                  style: IconButton.styleFrom(
-                    backgroundColor: AppTheme.primaryColor,
-                    foregroundColor: Colors.white,
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
-        ),
       ],
     ).animate().fadeIn(delay: AppTokens.animationFast, duration: AppTokens.animationMedium);
   }
@@ -331,7 +361,7 @@ class _CommentCard extends StatelessWidget {
               children: [
                 Expanded(
                   child: Text(
-                    comment.userName ?? 'User',
+                    'User #${comment.userId.substring(0, 6)}',
                     style: Theme.of(context).textTheme.titleSmall,
                   ),
                 ),
