@@ -87,7 +87,7 @@ class SettingsScreen extends StatelessWidget {
             leading: const Icon(Icons.person_outline),
             title: const Text('Profile'),
             onTap: () {
-              context.go('/profile');
+              context.push('/profile');
             },
           ),
           ListTile(
