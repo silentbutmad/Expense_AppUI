@@ -715,8 +715,16 @@ debugPrint("UserData: $_userData");
   }
 
 
+  Future<Map<String, dynamic>> getProfile() async {
+    final response = await _get('/auth/profile');
+    if (response is Map<String, dynamic> && response['data'] != null) {
+      return response['data'] as Map<String, dynamic>;
+    }
+    return response as Map<String, dynamic>;
+  }
+
   Future<Map<String, dynamic>> updateProfile(Map<String, dynamic> profileData) async {
-    final response = await _put('/user/profile', body: profileData);
+    final response = await _put('/auth/updateprofile', body: profileData);
     return response;
   }
 
@@ -841,7 +849,7 @@ debugPrint("UserData: $_userData");
   }
 
   Future<List<dynamic>> getFaqs() async {
-    final response = await _get('/support/faqs', requiresAuth: true);
+    final response = await _get('/support/faqs', requiresAuth: false);
     if (response is List) {
       return response;
     } else if (response is Map<String, dynamic>) {
@@ -851,7 +859,7 @@ debugPrint("UserData: $_userData");
   }
 
   Future<Map<String, dynamic>> getHelpInfo() async {
-    final response = await _get('/support/help', requiresAuth: true);
+    final response = await _get('/support/help', requiresAuth: false);
     return response as Map<String, dynamic>;
   }
 

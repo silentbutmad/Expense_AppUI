@@ -295,9 +295,6 @@ class SupportProvider extends ChangeNotifier {
     try {
       final helpInfoData = await _apiService.getHelpInfo();
       _helpInfo = HelpInfoModel.fromJson(helpInfoData);
-      print ("-------------------------------------------hi");
-      print(helpInfo?.email);
-    
       _isLoadingHelpInfo = false;
 
       notifyListeners();
