@@ -20,11 +20,19 @@ class TransactionDetailScreen extends StatefulWidget {
 }
 
 class _TransactionDetailScreenState extends State<TransactionDetailScreen> {
+  Map<String, dynamic>? _transaction;
+
+  @override
+  void initState() {
+    super.initState();
+    _transaction = widget.transaction;
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final textTheme = theme.textTheme;
-    final tx = widget.transaction;
+    final tx = _transaction ?? widget.transaction;
 
     final amount = parseAmount(tx['amount'] ?? tx['total_amount']);
     final transactionType = tx['transaction_type'] as String? ??
@@ -489,7 +497,7 @@ ${remark.isNotEmpty ? 'Remark : $remark' : ''}
     Share.share(shareText);
   }
 
-  void _editTransaction(BuildContext context, Map<String, dynamic> tx) {
+  Future<void> _editTransaction(BuildContext context, Map<String, dynamic> tx) async {
     final transactionId = tx['transaction_id'] as String? ?? tx['_id'] as String? ?? tx['id'] as String?;
     debugPrint('Edit transaction - ID: $transactionId, tx keys: ${tx.keys.toList()}');
     if (transactionId == null) {
@@ -508,21 +516,42 @@ ${remark.isNotEmpty ? 'Remark : $remark' : ''}
         ['SALE', 'PURCHASE'].contains(transactionType.toUpperCase());
 
     if (isBusinessTransaction) {
-      // Navigate to AddBusinessTransactionScreen for business transactions
-      context.push('/add-business-transaction', extra: {
+      await context.push('/add-business-transaction', extra: {
         'isEdit': true,
         'transactionId': transactionId,
         'existingTransaction': tx,
       });
     } else {
-      // Navigate to AddExpenseScreen for personal transactions
-      context.push('/add-expense', extra: {
+      await context.push('/add-expense', extra: {
         'isBusiness': false,
         'transactionType': _parseTransactionType(tx['transactionType'] as String?),
         'transactionCategory': _parseTransactionCategory(tx['category'] as String?),
         'transactionId': transactionId,
         'existingTransaction': tx,
       });
+    }
+
+    // Find updated transaction from provider's already-refreshed list
+    if (mounted && transactionId.isNotEmpty) {
+      Map<String, dynamic> updatedTx;
+      if (isBusinessTransaction) {
+        final businessProvider = Provider.of<BusinessProvider>(context, listen: false);
+        updatedTx = businessProvider.businessTransactions.firstWhere(
+          (t) => (t['transaction_id'] ?? t['_id'] ?? t['id']) == transactionId,
+          orElse: () => <String, dynamic>{},
+        );
+      } else {
+        final expenseProvider = Provider.of<ExpenseProvider>(context, listen: false);
+        updatedTx = expenseProvider.personalTransactions.firstWhere(
+          (t) => (t['transaction_id'] ?? t['_id'] ?? t['id']) == transactionId,
+          orElse: () => <String, dynamic>{},
+        );
+      }
+      if (updatedTx.isNotEmpty && mounted) {
+        setState(() {
+          _transaction = updatedTx;
+        });
+      }
     }
   }
 

@@ -529,7 +529,11 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                                 valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                               ),
                             )
-                          : Text(widget.isBusiness ? 'Add Expense' : 'Add Transaction'),
+                          : Text(widget.transactionId != null
+                              ? 'Update Transaction'
+                              : widget.isBusiness
+                                  ? 'Add Expense'
+                                  : 'Add Transaction'),
                     ),
                   ],
                 ),
