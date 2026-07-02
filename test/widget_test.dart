@@ -9,14 +9,17 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:myapp/main.dart';
 import 'package:myapp/services/api_service.dart';
+import 'package:myapp/services/reports_api_service.dart';
 import 'package:myapp/providers/support_provider.dart';
 
 void main() {
   testWidgets('Counter increments smoke test', (WidgetTester tester) async {
     // Build our app and trigger a frame.
+    final apiService = ApiService();
     await tester.pumpWidget(MyApp(
-      apiService: ApiService(),
-      supportProvider: SupportProvider(ApiService()),
+      apiService: apiService,
+      supportProvider: SupportProvider(apiService),
+      reportsApiService: ReportsApiService(apiService),
     ));
 
     // Verify that our counter starts at 0.

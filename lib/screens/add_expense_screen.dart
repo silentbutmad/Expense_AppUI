@@ -299,8 +299,9 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
           key: _formKey,
           child: _isLoadingData
               ? const Center(child: CircularProgressIndicator())
-              : Column(
-                  children: <Widget>[
+              : SingleChildScrollView(
+                  child: Column(
+                    children: <Widget>[
                     TextFormField(
                       controller: _amountController,
                       decoration: const InputDecoration(
@@ -512,7 +513,6 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                       ],
                     ),
                     const SizedBox(height: 8),
-                    const Spacer(),
                     const SizedBox(height: 16),
                     ElevatedButton(
                       onPressed: _isSubmitting ? null : _submitData,
@@ -535,7 +535,8 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                                   ? 'Add Expense'
                                   : 'Add Transaction'),
                     ),
-                  ],
+                    ],
+                  ),
                 ),
         ),
       ),

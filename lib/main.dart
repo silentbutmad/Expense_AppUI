@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:myapp/firebase_options.dart';
 import 'package:myapp/providers/business_provider.dart';
 import 'package:myapp/providers/expense_provider.dart';
+import 'package:myapp/providers/report_provider.dart';
 import 'package:myapp/providers/theme_provider.dart';
 import 'package:myapp/screens/add_expense_screen.dart';
 import 'package:myapp/screens/forgot_password_screen.dart';
@@ -28,6 +29,7 @@ import 'package:myapp/screens/create_business_screen.dart';
 import 'package:myapp/screens/add_party_screen.dart';
 import 'package:myapp/screens/add_item_screen.dart';
 import 'package:myapp/screens/add_business_transaction_screen.dart';
+import 'package:myapp/services/reports_api_service.dart';
 import 'package:myapp/theme/app_theme.dart';
 import 'package:provider/provider.dart';
 import 'package:myapp/services/api_service.dart';
@@ -42,14 +44,21 @@ void main() async {
   final apiService = ApiService();
   await apiService.loadSession();
 
-  runApp(MyApp(apiService: apiService, supportProvider: SupportProvider(apiService)));
+  final reportsApiService = ReportsApiService(apiService);
+
+  runApp(MyApp(
+    apiService: apiService,
+    supportProvider: SupportProvider(apiService),
+    reportsApiService: reportsApiService,
+  ));
 }
 
 class MyApp extends StatefulWidget {
   final ApiService apiService;
   final SupportProvider supportProvider;
+  final ReportsApiService reportsApiService;
 
-  const MyApp({super.key, required this.apiService, required this.supportProvider});
+  const MyApp({super.key, required this.apiService, required this.supportProvider, required this.reportsApiService});
 
   @override
   State<MyApp> createState() => _MyAppState();
@@ -220,6 +229,7 @@ class _MyAppState extends State<MyApp> with RouteAware {
         ChangeNotifierProvider(create: (_) => ThemeProvider()),
         ChangeNotifierProvider(create: (_) => ExpenseProvider(widget.apiService)),
         ChangeNotifierProvider(create: (_) => BusinessProvider(widget.apiService)),
+        ChangeNotifierProvider(create: (_) => ReportProvider(widget.reportsApiService)),
         ChangeNotifierProvider.value(value: widget.apiService),
         ChangeNotifierProvider.value(value: widget.supportProvider),
       ],
