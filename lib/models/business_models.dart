@@ -2,6 +2,12 @@
 // BUSINESS MODELS
 // ============================================================
 
+double _parseAmount(dynamic value) {
+  if (value is num) return value.toDouble();
+  if (value is String) return double.tryParse(value) ?? 0.0;
+  return 0.0;
+}
+
 /// Represents a business entity
 class BusinessModel {
   final String business_id;
@@ -169,9 +175,9 @@ class BusinessTransactionModel {
           : DateTime.now(),
       transactionTime: json['transaction_time'],
       dueDate: json['due_date'] != null ? DateTime.parse(json['due_date']) : null,
-      subtotalAmount: (json['subtotal_amount'] is num) ? (json['subtotal_amount'] as num).toDouble() : 0.0,
-      totalGstAmount: (json['total_gst_amount'] is num) ? (json['total_gst_amount'] as num).toDouble() : 0.0,
-      totalAmount: (json['total_amount'] is num) ? (json['total_amount'] as num).toDouble() : 0.0,
+      subtotalAmount: _parseAmount(json['subtotal_amount']),
+      totalGstAmount: _parseAmount(json['total_gst_amount']),
+      totalAmount: _parseAmount(json['total_amount']),
       isDeleted: json['is_deleted'] ?? false,
       createdAt: json['created_at'] != null ? DateTime.parse(json['created_at']) : DateTime.now(),
       lastModifiedAt: json['last_modified_at'] != null ? DateTime.parse(json['last_modified_at']) : null,
@@ -233,7 +239,7 @@ class TransactionItemModel {
       itemId: json['item_id'],
       description: json['description'],
       quantity: json['quantity'] ?? 0,
-      price: (json['price'] is num) ? (json['price'] as num).toDouble() : 0.0,
+      price: _parseAmount(json['price']),
       item: json['item'] != null ? CatalogItemModel.fromJson(json['item']) : null,
     );
   }

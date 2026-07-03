@@ -1,3 +1,9 @@
+double _parseAmount(dynamic value) {
+  if (value is num) return value.toDouble();
+  if (value is String) return double.tryParse(value) ?? 0.0;
+  return 0.0;
+}
+
 class PaginationInfo {
   final int page;
   final int limit;
@@ -60,7 +66,7 @@ class PersonalTransactionReport {
     return PersonalTransactionReport(
       transactionId: json['transaction_id'] ?? '',
       transactionType: json['transaction_type'] ?? '',
-      amount: (json['amount'] is num) ? (json['amount'] as num).toDouble() : 0.0,
+      amount: _parseAmount(json['amount']),
       name: json['name'],
       email: json['email'],
       category: json['category'],
@@ -88,7 +94,7 @@ class CategoryReport {
   factory CategoryReport.fromJson(Map<String, dynamic> json) {
     return CategoryReport(
       category: json['category'] ?? '',
-      totalAmount: (json['total_amount'] is num) ? (json['total_amount'] as num).toDouble() : 0.0,
+      totalAmount: _parseAmount(json['total_amount']),
       transactionCount: (json['transaction_count'] as num?)?.toInt() ?? 0,
     );
   }
@@ -108,7 +114,7 @@ class PaymentModeReport {
   factory PaymentModeReport.fromJson(Map<String, dynamic> json) {
     return PaymentModeReport(
       paymentMode: json['payment_mode'] ?? '',
-      totalAmount: (json['total_amount'] is num) ? (json['total_amount'] as num).toDouble() : 0.0,
+      totalAmount: _parseAmount(json['total_amount']),
       transactionCount: (json['transaction_count'] as num?)?.toInt() ?? 0,
     );
   }
@@ -159,9 +165,9 @@ class BusinessTransactionReport {
       transactionType: json['transaction_type'] ?? '',
       transactionDate: json['transaction_date'],
       dueDate: json['due_date'],
-      subtotalAmount: (json['subtotal_amount'] is num) ? (json['subtotal_amount'] as num).toDouble() : 0.0,
-      totalGstAmount: (json['total_gst_amount'] is num) ? (json['total_gst_amount'] as num).toDouble() : 0.0,
-      totalAmount: (json['total_amount'] is num) ? (json['total_amount'] as num).toDouble() : 0.0,
+      subtotalAmount: _parseAmount(json['subtotal_amount']),
+      totalGstAmount: _parseAmount(json['total_gst_amount']),
+      totalAmount: _parseAmount(json['total_amount']),
       createdAt: json['created_at'],
     );
   }
@@ -192,7 +198,7 @@ class SaleReport {
       transactionNumber: json['transaction_number'],
       partyName: json['party_name'],
       partyType: json['party_type'],
-      totalAmount: (json['total_amount'] is num) ? (json['total_amount'] as num).toDouble() : 0.0,
+      totalAmount: _parseAmount(json['total_amount']),
       transactionDate: json['transaction_date'],
       itemsCount: (json['items_count'] as num?)?.toInt() ?? 0,
     );
@@ -221,7 +227,7 @@ class PurchaseReport {
       transactionId: json['transaction_id'] ?? '',
       transactionNumber: json['transaction_number'],
       partyName: json['party_name'],
-      totalAmount: (json['total_amount'] is num) ? (json['total_amount'] as num).toDouble() : 0.0,
+      totalAmount: _parseAmount(json['total_amount']),
       transactionDate: json['transaction_date'],
       items: (json['items'] as List?)?.map((i) => PurchaseItem.fromJson(i)).toList() ?? [],
     );
@@ -239,7 +245,7 @@ class PurchaseItem {
     return PurchaseItem(
       itemName: json['item_name'],
       quantity: (json['quantity'] as num?)?.toInt() ?? 0,
-      price: (json['price'] is num) ? (json['price'] as num).toDouble() : 0.0,
+      price: _parseAmount(json['price']),
     );
   }
 }
@@ -266,7 +272,7 @@ class ExpenseReport {
       transactionId: json['transaction_id'] ?? '',
       transactionNumber: json['transaction_number'],
       title: json['title'],
-      totalAmount: (json['total_amount'] is num) ? (json['total_amount'] as num).toDouble() : 0.0,
+      totalAmount: _parseAmount(json['total_amount']),
       transactionDate: json['transaction_date'],
       items: (json['items'] as List?)?.map((i) => ExpenseReportItem.fromJson(i)).toList() ?? [],
     );
@@ -286,7 +292,7 @@ class ExpenseReportItem {
       itemName: json['item_name'],
       description: json['description'],
       quantity: (json['quantity'] as num?)?.toInt() ?? 0,
-      price: (json['price'] is num) ? (json['price'] as num).toDouble() : 0.0,
+      price: _parseAmount(json['price']),
     );
   }
 }
@@ -319,9 +325,9 @@ class PartySummary {
       phone: json['phone'],
       partyType: json['party_type'] ?? '',
       totalTransactions: (json['total_transactions'] as num?)?.toInt() ?? 0,
-      totalSales: (json['total_sales'] is num) ? (json['total_sales'] as num).toDouble() : 0.0,
-      totalPurchase: (json['total_purchase'] is num) ? (json['total_purchase'] as num).toDouble() : 0.0,
-      totalAmount: (json['total_amount'] is num) ? (json['total_amount'] as num).toDouble() : 0.0,
+      totalSales: _parseAmount(json['total_sales']),
+      totalPurchase: _parseAmount(json['total_purchase']),
+      totalAmount: _parseAmount(json['total_amount']),
     );
   }
 }
@@ -346,7 +352,7 @@ class TopCustomer {
       partyId: json['party_id'] ?? '',
       partyName: json['party_name'] ?? '',
       phone: json['phone'],
-      totalSales: (json['total_sales'] is num) ? (json['total_sales'] as num).toDouble() : 0.0,
+      totalSales: _parseAmount(json['total_sales']),
       transactionCount: (json['transaction_count'] as num?)?.toInt() ?? 0,
     );
   }
@@ -372,7 +378,7 @@ class TopSupplier {
       partyId: json['party_id'] ?? '',
       partyName: json['party_name'] ?? '',
       phone: json['phone'],
-      totalPurchase: (json['total_purchase'] is num) ? (json['total_purchase'] as num).toDouble() : 0.0,
+      totalPurchase: _parseAmount(json['total_purchase']),
       transactionCount: (json['transaction_count'] as num?)?.toInt() ?? 0,
     );
   }
@@ -401,8 +407,8 @@ class ItemSaleReport {
       itemName: json['item_name'] ?? '',
       categoryName: json['category_name'] ?? '',
       totalQuantitySold: (json['total_quantity_sold'] as num?)?.toInt() ?? 0,
-      totalRevenue: (json['total_revenue'] is num) ? (json['total_revenue'] as num).toDouble() : 0.0,
-      gstRate: (json['gst_rate'] is num) ? (json['gst_rate'] as num).toDouble() : 0.0,
+      totalRevenue: _parseAmount(json['total_revenue']),
+      gstRate: _parseAmount(json['gst_rate']),
     );
   }
 }
@@ -428,7 +434,7 @@ class ItemPurchaseReport {
       itemName: json['item_name'] ?? '',
       categoryName: json['category_name'] ?? '',
       totalQuantityPurchased: (json['total_quantity_purchased'] as num?)?.toInt() ?? 0,
-      totalCost: (json['total_cost'] is num) ? (json['total_cost'] as num).toDouble() : 0.0,
+      totalCost: _parseAmount(json['total_cost']),
     );
   }
 }
@@ -461,8 +467,8 @@ class InventoryReport {
       itemId: json['item_id'] ?? '',
       itemName: json['item_name'] ?? '',
       categoryName: json['category_name'] ?? '',
-      price: (json['price'] is num) ? (json['price'] as num).toDouble() : 0.0,
-      gstRate: (json['gst_rate'] is num) ? (json['gst_rate'] as num).toDouble() : 0.0,
+      price: _parseAmount(json['price']),
+      gstRate: _parseAmount(json['gst_rate']),
       hsnCode: json['hsn_code'],
       totalSold: (json['total_sold'] as num?)?.toInt() ?? 0,
       totalPurchased: (json['total_purchased'] as num?)?.toInt() ?? 0,
@@ -483,9 +489,9 @@ class GstSummary {
 
   factory GstSummary.fromJson(Map<String, dynamic> json) {
     return GstSummary(
-      totalGstCollected: (json['total_gst_collected'] is num) ? (json['total_gst_collected'] as num).toDouble() : 0.0,
-      totalGstPaid: (json['total_gst_paid'] is num) ? (json['total_gst_paid'] as num).toDouble() : 0.0,
-      netGst: (json['net_gst'] is num) ? (json['net_gst'] as num).toDouble() : 0.0,
+      totalGstCollected: _parseAmount(json['total_gst_collected']),
+      totalGstPaid: _parseAmount(json['total_gst_paid']),
+      netGst: _parseAmount(json['net_gst']),
     );
   }
 }
@@ -514,9 +520,9 @@ class GstDetail {
       transactionNumber: json['transaction_number'],
       transactionType: json['transaction_type'] ?? '',
       transactionDate: json['transaction_date'],
-      subtotalAmount: (json['subtotal_amount'] is num) ? (json['subtotal_amount'] as num).toDouble() : 0.0,
-      totalGstAmount: (json['total_gst_amount'] is num) ? (json['total_gst_amount'] as num).toDouble() : 0.0,
-      totalAmount: (json['total_amount'] is num) ? (json['total_amount'] as num).toDouble() : 0.0,
+      subtotalAmount: _parseAmount(json['subtotal_amount']),
+      totalGstAmount: _parseAmount(json['total_gst_amount']),
+      totalAmount: _parseAmount(json['total_amount']),
       partyName: json['party_name'],
     );
   }
@@ -539,11 +545,11 @@ class ProfitLossReport {
 
   factory ProfitLossReport.fromJson(Map<String, dynamic> json) {
     return ProfitLossReport(
-      totalSales: (json['total_sales'] is num) ? (json['total_sales'] as num).toDouble() : 0.0,
-      totalPurchase: (json['total_purchase'] is num) ? (json['total_purchase'] as num).toDouble() : 0.0,
-      totalExpenses: (json['total_expenses'] is num) ? (json['total_expenses'] as num).toDouble() : 0.0,
-      grossProfit: (json['gross_profit'] is num) ? (json['gross_profit'] as num).toDouble() : 0.0,
-      netProfit: (json['net_profit'] is num) ? (json['net_profit'] as num).toDouble() : 0.0,
+      totalSales: _parseAmount(json['total_sales']),
+      totalPurchase: _parseAmount(json['total_purchase']),
+      totalExpenses: _parseAmount(json['total_expenses']),
+      grossProfit: _parseAmount(json['gross_profit']),
+      netProfit: _parseAmount(json['net_profit']),
     );
   }
 }
@@ -570,9 +576,9 @@ class CashFlowEntry {
       date: json['date'],
       transactionType: json['transaction_type'] ?? '',
       contextType: json['context_type'] ?? '',
-      amountIn: (json['amount_in'] is num) ? (json['amount_in'] as num).toDouble() : 0.0,
-      amountOut: (json['amount_out'] is num) ? (json['amount_out'] as num).toDouble() : 0.0,
-      balance: (json['balance'] is num) ? (json['balance'] as num).toDouble() : 0.0,
+      amountIn: _parseAmount(json['amount_in']),
+      amountOut: _parseAmount(json['amount_out']),
+      balance: _parseAmount(json['balance']),
     );
   }
 }
@@ -595,10 +601,10 @@ class MonthlyTrend {
   factory MonthlyTrend.fromJson(Map<String, dynamic> json) {
     return MonthlyTrend(
       month: json['month'] ?? '',
-      totalSales: (json['total_sales'] is num) ? (json['total_sales'] as num).toDouble() : 0.0,
-      totalPurchase: (json['total_purchase'] is num) ? (json['total_purchase'] as num).toDouble() : 0.0,
-      totalExpenses: (json['total_expenses'] is num) ? (json['total_expenses'] as num).toDouble() : 0.0,
-      netProfit: (json['net_profit'] is num) ? (json['net_profit'] as num).toDouble() : 0.0,
+      totalSales: _parseAmount(json['total_sales']),
+      totalPurchase: _parseAmount(json['total_purchase']),
+      totalExpenses: _parseAmount(json['total_expenses']),
+      netProfit: _parseAmount(json['net_profit']),
     );
   }
 }
@@ -624,9 +630,9 @@ class DashboardReport {
 
   factory DashboardReport.fromJson(Map<String, dynamic> json) {
     return DashboardReport(
-      totalSales: (json['total_sales'] is num) ? (json['total_sales'] as num).toDouble() : 0.0,
-      totalPurchase: (json['total_purchase'] is num) ? (json['total_purchase'] as num).toDouble() : 0.0,
-      totalExpenses: (json['total_expenses'] is num) ? (json['total_expenses'] as num).toDouble() : 0.0,
+      totalSales: _parseAmount(json['total_sales']),
+      totalPurchase: _parseAmount(json['total_purchase']),
+      totalExpenses: _parseAmount(json['total_expenses']),
       totalParties: (json['total_parties'] as num?)?.toInt() ?? 0,
       totalItems: (json['total_items'] as num?)?.toInt() ?? 0,
       pendingReminders: (json['pending_reminders'] as num?)?.toInt() ?? 0,
@@ -657,7 +663,7 @@ class RecentTransaction {
       transactionId: json['transaction_id'] ?? '',
       transactionNumber: json['transaction_number'],
       transactionType: json['transaction_type'] ?? '',
-      totalAmount: (json['total_amount'] is num) ? (json['total_amount'] as num).toDouble() : 0.0,
+      totalAmount: _parseAmount(json['total_amount']),
       transactionDate: json['transaction_date'],
       partyName: json['party_name'],
     );
@@ -688,7 +694,7 @@ class CombinedHistoryEntry {
       transactionId: json['transaction_id'] ?? '',
       contextType: json['context_type'] ?? '',
       transactionType: json['transaction_type'] ?? '',
-      amount: (json['amount'] is num) ? (json['amount'] as num).toDouble() : 0.0,
+      amount: _parseAmount(json['amount']),
       transactionDate: json['transaction_date'],
       partyName: json['party_name'],
       description: json['description'],

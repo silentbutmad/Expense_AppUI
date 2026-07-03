@@ -184,7 +184,7 @@ debugPrint("UserData: $_userData");
 
     try {
       final response = await _post(
-        '/auth/verify-otp',
+        '/auth/verify-register',
         body: {'email': email, 'otp': otp},
         requiresAuth: false,
       );
