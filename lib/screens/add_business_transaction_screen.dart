@@ -487,7 +487,9 @@ class _AddBusinessTransactionScreenState extends State<AddBusinessTransactionScr
                 keyboardType: const TextInputType.numberWithOptions(decimal: true),
                 validator: (v) {
                   if (v?.isEmpty ?? true) return 'Enter amount';
-                  if (double.tryParse(v!) == null) return 'Invalid amount';
+                  final amount = double.tryParse(v!);
+                  if (amount == null) return 'Invalid amount';
+                  if (amount <= 0) return 'Amount must be greater than zero';
                   return null;
                 },
               ),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:myapp/services/api_service.dart';
 import 'package:provider/provider.dart';
@@ -20,6 +21,9 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
   final _confirmPasswordController = TextEditingController();
 
   String? _errorMessage;
+  bool _isSubmitting = false;
+  bool _isPasswordVisible = false;
+  bool _isConfirmPasswordVisible = false;
 
   @override
   void dispose() {
@@ -29,33 +33,99 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
     super.dispose();
   }
 
+  String? _validateOtp(String? value) {
+    if (value == null || value.isEmpty) {
+      return 'OTP is required';
+    }
+    if (!RegExp(r'^\d{6}$').hasMatch(value)) {
+      return 'Enter a valid 6-digit OTP';
+    }
+    return null;
+  }
+
+  String? _validatePassword(String? value) {
+    if (value == null || value.isEmpty) {
+      return 'Password is required';
+    }
+    if (value.length < 8) {
+      return 'At least 8 characters required';
+    }
+    if (value.length > 64) {
+      return 'Must be at most 64 characters';
+    }
+    if (!RegExp(r'[A-Z]').hasMatch(value)) {
+      return 'Must contain an uppercase letter';
+    }
+    if (!RegExp(r'[a-z]').hasMatch(value)) {
+      return 'Must contain a lowercase letter';
+    }
+    if (!RegExp(r'[0-9]').hasMatch(value)) {
+      return 'Must contain a number';
+    }
+    if (!RegExp(r'''[!@#$%^&*(),.?"':{}|<>~`_\-+=\[\]\\;/]''').hasMatch(value)) {
+      return 'Must contain a special character';
+    }
+    return null;
+  }
+
+  String? _validateConfirmPassword(String? value) {
+    if (value == null || value.isEmpty) {
+      return 'Please confirm your password';
+    }
+    if (value != _passwordController.text) {
+      return 'Passwords do not match';
+    }
+    return null;
+  }
+
   Future<void> _resetPassword() async {
-    if (_formKey.currentState!.validate()) {
-      try {
-        final apiService = Provider.of<ApiService>(context, listen: false);
+    if (!_formKey.currentState!.validate()) return;
+    if (_isSubmitting) return;
 
-        await apiService.resetPassword(
-          email: widget.email,
-          otp: _otpController.text,
-          newPassword: _passwordController.text,
-        );
+    setState(() {
+      _isSubmitting = true;
+      _errorMessage = null;
+    });
 
-        if (mounted) {
-          context.go('/success?message=Password Reset Successful&routeName=/login');
-        }
-      } catch (e) {
-        if (mounted) {
-          setState(() {
-            _errorMessage = e.toString().replaceAll('Exception: ', '');
-          });
-        }
+    try {
+      final apiService = Provider.of<ApiService>(context, listen: false);
+
+      await apiService.resetPassword(
+        email: widget.email,
+        otp: _otpController.text,
+        newPassword: _passwordController.text,
+      );
+
+      if (mounted) {
+        context.go(
+            '/success?message=Password Reset Successful&routeName=/login');
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _errorMessage = e.toString().replaceAll('Exception: ', '');
+        });
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSubmitting = false;
+        });
       }
     }
+  }
+
+  InputDecoration _inputDecoration(String label) {
+    return InputDecoration(
+      labelText: label,
+      border: const OutlineInputBorder(),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     final apiService = Provider.of<ApiService>(context);
+    final isLoading = apiService.isLoading || _isSubmitting;
 
     return Scaffold(
       appBar: AppBar(title: const Text('Reset Password')),
@@ -71,51 +141,82 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
 
               TextFormField(
                 controller: _otpController,
-                decoration: const InputDecoration(
-                  labelText: 'OTP',
-                  border: OutlineInputBorder(),
-                ),
-                validator: (v) => v!.isEmpty ? 'Enter OTP' : null,
+                keyboardType: TextInputType.number,
+                textInputAction: TextInputAction.next,
+                maxLength: 6,
+                inputFormatters: [
+                  FilteringTextInputFormatter.digitsOnly,
+                  LengthLimitingTextInputFormatter(6),
+                ],
+                decoration: _inputDecoration('OTP').copyWith(counterText: ''),
+                onFieldSubmitted: (_) {},
+                validator: _validateOtp,
               ),
 
               const SizedBox(height: 10),
 
               TextFormField(
                 controller: _passwordController,
-                decoration: const InputDecoration(
-                  labelText: 'New Password',
-                  border: OutlineInputBorder(),
+                obscureText: !_isPasswordVisible,
+                textInputAction: TextInputAction.next,
+                decoration: _inputDecoration('New Password').copyWith(
+                  suffixIcon: IconButton(
+                    icon: Icon(_isPasswordVisible
+                        ? Icons.visibility
+                        : Icons.visibility_off),
+                    onPressed: () =>
+                        setState(() => _isPasswordVisible = !_isPasswordVisible),
+                  ),
                 ),
-                obscureText: true,
+                validator: _validatePassword,
               ),
 
               const SizedBox(height: 10),
 
               TextFormField(
                 controller: _confirmPasswordController,
-                decoration: const InputDecoration(
-                  labelText: 'Confirm Password',
-                  border: OutlineInputBorder(),
+                obscureText: !_isConfirmPasswordVisible,
+                textInputAction: TextInputAction.done,
+                decoration: _inputDecoration('Confirm Password').copyWith(
+                  suffixIcon: IconButton(
+                    icon: Icon(_isConfirmPasswordVisible
+                        ? Icons.visibility
+                        : Icons.visibility_off),
+                    onPressed: () => setState(
+                        () => _isConfirmPasswordVisible = !_isConfirmPasswordVisible),
+                  ),
                 ),
-                obscureText: true,
-                validator: (v) {
-                  if (v != _passwordController.text) {
-                    return 'Passwords do not match';
-                  }
-                  return null;
-                },
+                onFieldSubmitted: (_) => _resetPassword(),
+                validator: _validateConfirmPassword,
               ),
 
               const SizedBox(height: 20),
 
               if (_errorMessage != null)
-                Text(_errorMessage!, style: const TextStyle(color: Colors.red)),
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 10),
+                  child: Text(
+                    _errorMessage!,
+                    style: const TextStyle(color: Colors.red),
+                  ),
+                ),
 
-              ElevatedButton(
-                onPressed: apiService.isLoading ? null : _resetPassword,
-                child: apiService.isLoading
-                    ? const CircularProgressIndicator(color: Colors.white)
-                    : const Text('Reset Password'),
+              SizedBox(
+                width: double.infinity,
+                height: 48,
+                child: ElevatedButton(
+                  onPressed: isLoading ? null : _resetPassword,
+                  child: isLoading
+                      ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Text('Reset Password'),
+                ),
               ),
             ],
           ),

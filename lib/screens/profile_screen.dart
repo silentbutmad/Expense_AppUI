@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:myapp/services/api_service.dart';
 import 'package:myapp/theme/app_theme.dart';
 import 'package:myapp/theme/app_tokens.dart';
@@ -15,6 +16,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Map<String, dynamic>? _userData;
   bool _isLoading = true;
   bool _isEditing = false;
+  bool _isSubmitting = false;
 
   final _formKey = GlobalKey<FormState>();
   final _firstNameController = TextEditingController();
@@ -68,7 +70,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
     _firstNameController.text = _getField('first_name', 'firstName') ?? '';
     _lastNameController.text = _getField('last_name', 'lastName') ?? '';
     _emailController.text = _getField('email') ?? '';
-    _mobileController.text = _getField('mobile_number', 'mobileNumber', 'mobile') ?? '';
+    _mobileController.text =
+        _getField('mobile_number', 'mobileNumber', 'mobile') ?? '';
     _selectedLanguage = _getField('language');
   }
 
@@ -88,29 +91,70 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
+  String? _validateName(String? value, String fieldName) {
+    final trimmed = value?.trim();
+    if (trimmed == null || trimmed.isEmpty) {
+      return '$fieldName is required';
+    }
+    if (trimmed.length < 2) {
+      return 'Must be at least 2 characters';
+    }
+    if (trimmed.length > 50) {
+      return 'Must be at most 50 characters';
+    }
+    if (!RegExp(r'^[a-zA-Z]+(?: [a-zA-Z]+)*$').hasMatch(trimmed)) {
+      return 'Only letters and single spaces allowed';
+    }
+    return null;
+  }
+
+  String? _validateEmail(String? value) {
+    final trimmed = value?.trim();
+    if (trimmed == null || trimmed.isEmpty) {
+      return 'Email is required';
+    }
+    if (!RegExp(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$')
+        .hasMatch(trimmed)) {
+      return 'Enter a valid email address';
+    }
+    return null;
+  }
+
+  String? _validateMobile(String? value) {
+    if (value == null || value.isEmpty) {
+      return 'Mobile number is required';
+    }
+    if (!RegExp(r'^[6-9]\d{9}$').hasMatch(value)) {
+      return 'Enter a valid 10-digit number starting with 6-9';
+    }
+    return null;
+  }
+
   Future<void> _saveProfile() async {
     if (!_formKey.currentState!.validate()) return;
+    if (_isSubmitting) return;
+
+    setState(() => _isSubmitting = true);
 
     try {
       final apiService = Provider.of<ApiService>(context, listen: false);
       final updatedData = <String, dynamic>{
         'first_name': _firstNameController.text.trim(),
         'last_name': _lastNameController.text.trim(),
-        'email': _emailController.text.trim(),
+        'email': _emailController.text.trim().toLowerCase(),
         'mobile_number': _mobileController.text.trim(),
         'language': _selectedLanguage,
       };
 
       await apiService.updateProfile(updatedData);
 
-      // Re-fetch profile to get server-side data
       final freshData = await apiService.getProfile();
-      setState(() {
-        _userData = freshData;
-        _isEditing = false;
-      });
-
       if (mounted) {
+        setState(() {
+          _userData = freshData;
+          _isEditing = false;
+          _isSubmitting = false;
+        });
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Profile updated successfully'),
@@ -120,6 +164,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       }
     } catch (e) {
       if (mounted) {
+        setState(() => _isSubmitting = false);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Failed to update profile: $e'),
@@ -163,18 +208,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Widget _buildProfileView() {
-    final firstName = _getField('first_name', 'firstName') ?? _getField('name');
+    final firstName =
+        _getField('first_name', 'firstName') ?? _getField('name');
     final lastName = _getField('last_name', 'lastName');
     final fullName = firstName != null && lastName != null
         ? '$firstName $lastName'
         : firstName ?? 'N/A';
     final email = _getField('email') ?? 'N/A';
-    final mobile = _getField('mobile_number', 'mobileNumber', 'mobile') ?? 'N/A';
+    final mobile =
+        _getField('mobile_number', 'mobileNumber', 'mobile') ?? 'N/A';
     final language = _getField('language') ?? 'N/A';
     final isVerified = _userData!['isverified'] == true ||
         _userData!['isVerified'] == true;
-    final lastLogin = _formatDate(_userData!['last_login'] ?? _userData!['lastLogin']);
-    final memberSince = _formatDate(_userData!['created_at'] ?? _userData!['createdAt'] ?? _userData!['create_at']);
+    final lastLogin =
+        _formatDate(_userData!['last_login'] ?? _userData!['lastLogin']);
+    final memberSince = _formatDate(_userData!['created_at'] ??
+        _userData!['createdAt'] ??
+        _userData!['create_at']);
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(AppTokens.padding),
@@ -183,9 +233,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
           const SizedBox(height: 20),
           CircleAvatar(
             radius: 50,
-            backgroundColor: AppTheme.primaryColor.withOpacity(0.2),
+            backgroundColor: AppTheme.primaryColor.withValues(alpha: 0.2),
             child: Text(
-              (firstName?.isNotEmpty == true ? firstName![0] : '?').toUpperCase(),
+              (firstName?.isNotEmpty == true ? firstName![0] : '?')
+                  .toUpperCase(),
               style: Theme.of(context).textTheme.headlineLarge?.copyWith(
                     color: AppTheme.primaryColor,
                   ),
@@ -194,9 +245,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
           const SizedBox(height: 8),
           if (isVerified)
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
               decoration: BoxDecoration(
-                color: Colors.green.withOpacity(0.2),
+                color: Colors.green.withValues(alpha: 0.2),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: const Row(
@@ -295,12 +347,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 border: OutlineInputBorder(),
                 prefixIcon: Icon(Icons.person),
               ),
-              validator: (value) {
-                if (value == null || value.trim().isEmpty) {
-                  return 'First name is required';
-                }
-                return null;
-              },
+              textCapitalization: TextCapitalization.words,
+              inputFormatters: [
+                FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z ]')),
+                LengthLimitingTextInputFormatter(50),
+              ],
+              validator: (v) => _validateName(v, 'First name'),
             ),
             const SizedBox(height: 16),
             TextFormField(
@@ -310,12 +362,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 border: OutlineInputBorder(),
                 prefixIcon: Icon(Icons.person),
               ),
-              validator: (value) {
-                if (value == null || value.trim().isEmpty) {
-                  return 'Last name is required';
-                }
-                return null;
-              },
+              textCapitalization: TextCapitalization.words,
+              inputFormatters: [
+                FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z ]')),
+                LengthLimitingTextInputFormatter(50),
+              ],
+              validator: (v) => _validateName(v, 'Last name'),
             ),
             const SizedBox(height: 16),
             TextFormField(
@@ -326,15 +378,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 prefixIcon: Icon(Icons.email),
               ),
               keyboardType: TextInputType.emailAddress,
-              validator: (value) {
-                if (value == null || value.trim().isEmpty) {
-                  return 'Email is required';
-                }
-                if (!value.contains('@')) {
-                  return 'Enter a valid email';
-                }
-                return null;
-              },
+              validator: _validateEmail,
             ),
             const SizedBox(height: 16),
             TextFormField(
@@ -345,12 +389,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 prefixIcon: Icon(Icons.phone),
               ),
               keyboardType: TextInputType.phone,
-              validator: (value) {
-                if (value == null || value.trim().isEmpty) {
-                  return 'Mobile number is required';
-                }
-                return null;
-              },
+              inputFormatters: [
+                FilteringTextInputFormatter.digitsOnly,
+                LengthLimitingTextInputFormatter(10),
+              ],
+              validator: _validateMobile,
             ),
             const SizedBox(height: 16),
             DropdownButtonFormField<String>(
@@ -376,8 +419,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
-                onPressed: _saveProfile,
-                child: const Text('Save Changes'),
+                onPressed: _isSubmitting ? null : _saveProfile,
+                child: _isSubmitting
+                    ? const SizedBox(
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Text('Save Changes'),
               ),
             ),
           ],
